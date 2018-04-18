@@ -80,6 +80,11 @@ class CVMetaData(object):
 #
 #         level += 1
 
+'''
+TODO:
+1. Confirm correctness of metadata
+2. Use metadata to generate connection without having to temporarily store 2 levels
+'''
 
 
 cv = ConvSPN(32, 32, 8, 2)
