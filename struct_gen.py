@@ -165,8 +165,8 @@ class ConvSPN(object):
         if x_stride == 0 or y_stride == 0:
             return []
 
-        x_max = min(self.sum_shifts, scope.x_size)
-        y_max = min(self.sum_shifts, scope.y_size)
+        x_max = int(min(self.sum_shifts, scope.x_size))
+        y_max = int(min(self.sum_shifts, scope.y_size))
         x_offsets = [i * x_stride for i in range(x_max)]
         y_offsets = [i * y_stride for i in range(y_max)]
 
@@ -211,8 +211,8 @@ class ConvSPN(object):
         if x_size == 0 or y_size == 0:
             return []
 
-        x_max = min(self.prd_subdivs, scope.x_size)
-        y_max = min(self.prd_subdivs, scope.y_size)
+        x_max = int(min(self.prd_subdivs, scope.x_size))
+        y_max = int(min(self.prd_subdivs, scope.y_size))
         x_offsets = [i * x_size for i in range(x_max)]
         y_offsets = [i * y_size for i in range(y_max)]
 
@@ -299,10 +299,3 @@ class ConvSPN(object):
 
             print("Level " + str(level) + ": " + str(len(all)))
             level += 1
-
-cv = ConvSPN(32, 32, 8, 2)
-cv.generate_spn()
-
-cv.print_stat()
-
-pdb.set_trace()
