@@ -61,6 +61,8 @@ class ConvSPN(object):
         self.reused_prd = 0
         self.count_by_depth = defaultdict(int)
 
+        self.generate_spn()
+
     def generate_spn(self):
         root_scope = Scope(0, 0, self.x_size, self.y_size)
         self.root = self.generate_sum(root_scope, 0)

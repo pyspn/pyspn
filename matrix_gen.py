@@ -8,15 +8,14 @@ from struct_gen import *
 # Constants
 sum_type = "sum"
 prd_type = "prd"
-class Layer(object):
-    def __init__(self):
-        self.type = None
-        self.weights = []
-        self.mask = []
 
 class CVMetaData(object):
     def __init__(self, cv):
         self.depth = 0
+        self.masks_by_level = []
+        self.type_by_level = []
+
+        # internal properties
         self.level_label_by_node = {}
         self.num_nodes_by_level = []
         self.nodes_by_level = []
@@ -39,12 +38,22 @@ class CVMetaData(object):
 
             curr_level = [] # nodes at the current level
             visited = {}
+            level_type = None
             for i in range(level_size):
                 node = q.popleft()
                 curr_level.append(node)
 
                 if isinstance(node, Leaf):
                     continue
+                else:
+                    node_type = sum_type if isinstance(node, Sum) else prd_type
+                    if level_type is None:
+                        level_type = node_type
+                    elif node_type != level_type:
+                        error = "Level type mismatch: Expects " + level_type + " gets " + node_type
+                        print(error)
+                        raise Exception(error)
+
 
                 for child in node.children:
                     if child in visited:
@@ -52,6 +61,7 @@ class CVMetaData(object):
                     visited[child] = True
                     q.append(child)
 
+            self.type_by_level.append(level_type)
             self.nodes_by_level.append(curr_level)
             self.num_nodes_by_level.append(len(curr_level))
             for (label, node) in enumerate(curr_level):
@@ -60,30 +70,30 @@ class CVMetaData(object):
 
         self.depth = level
 
-def get_layers(cv):
-    '''
-    Returns a TorchSPN style layer information corresponding to ConvSPN cv
-    '''
+        self.masks_by_level = self.get_masks_by_level(cv)
 
-    metadata = CVMetaData(cv)
-    masks_by_level = []
-    for cur_level in range(metadata.depth - 1):
-        next_level = cur_level + 1
-        cur_level_count = metadata.num_nodes_by_level[cur_level]
-        next_level_count = metadata.num_nodes_by_level[next_level]
+    def get_masks_by_level(self, cv):
+        '''
+        Returns a TorchSPN style layer information corresponding to ConvSPN cv
+        '''
+        masks_by_level = []
+        for cur_level in range(self.depth - 1):
+            next_level = cur_level + 1
+            cur_level_count = self.num_nodes_by_level[cur_level]
+            next_level_count = self.num_nodes_by_level[next_level]
 
-        level_mask = np.zeros((cur_level_count, next_level_count))
+            level_mask = np.zeros((cur_level_count, next_level_count))
 
-        cur_level_nodes = metadata.nodes_by_level[cur_level]
-        for cur_node in  cur_level_nodes:
-            cur_label = metadata.level_label_by_node[cur_node]
-            for child_node in cur_node.children:
-                child_label = metadata.level_label_by_node[child_node]
-                level_mask[cur_label][child_label] = 1
+            cur_level_nodes = self.nodes_by_level[cur_level]
+            for cur_node in  cur_level_nodes:
+                cur_label = self.level_label_by_node[cur_node]
+                for child_node in cur_node.children:
+                    child_label = self.level_label_by_node[child_node]
+                    level_mask[cur_label][child_label] = 1
 
-        masks_by_level.append(level_mask)
+            masks_by_level.append(level_mask)
 
-    return masks_by_level
+        return masks_by_level
 
 def get_edge_count_from_layers(cv_layers):
     '''
@@ -95,12 +105,3 @@ def get_edge_count_from_layers(cv_layers):
         edge_count.append(np.count_nonzero(layer))
 
     return edge_count
-
-cv = ConvSPN(32, 32, 8, 2)
-cv.generate_spn()
-
-cv_layers = get_layers(cv)
-
-cv.print_stat()
-
-pdb.set_trace()
