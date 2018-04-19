@@ -187,8 +187,24 @@ class ConvSPN(object):
                     scope.y_ori + y_offset,
                     scope.x_size,
                     scope.y_size)
-
                 shifts.append(shift)
+
+                '''
+                Clips scope to parent's scope.
+                The assumption wrt size ordering would be messed up, so matrix generation
+                doesn't work as neat as we'd like it to be. Figure this out soon.
+                '''
+                # x_ori = scope.x_ori + x_offset
+                # y_ori = scope.y_ori + y_offset
+                #
+                # # ensure that the end doesn't get out of the scope
+                # x_end = min(scope.x_end, x_ori + scope.x_size - 1)
+                # y_end = min(scope.y_end, y_ori + scope.y_size - 1)
+                #
+                # x_size = x_end - x_ori + 1
+                # y_size = y_end - y_ori + 1
+                #
+                # shift = Scope(x_ori, y_ori, x_size, y_size)
 
         return shifts
 
@@ -382,12 +398,5 @@ def check_validity(root):
             else:
                 return (-1, False)
     return root.id, True
-
-
-cv = ConvSPN(32, 32, 8, 2)
-cv.generate_spn()
-root_id, flag = check_validity(cv.root)
-print(flag)
-cv.print_stat()
 
 # pdb.set_trace()

@@ -9,7 +9,7 @@ from struct_gen import *
 from matrix_gen import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from TorchSPN.src import network, param
+from TorchSPN.src import network, param, nodes
 
 debug = True
 def dbg(debug_text):
@@ -34,6 +34,8 @@ class MatrixSPN(torch.nn.Module):
 
         self.root = None
         self.leaves = []
+        self.concat_leaves = None
+        self.layers = []
 
         self.val_dict = None
         self.cond_mask_dict = None
@@ -53,7 +55,14 @@ class MatrixSPN(torch.nn.Module):
             val_dict=self.val_dict,
             cond_mask_dict=self.cond_mask_dict,
             grad=True,
-            log=True)
+            log=False)
+
+        if debug:
+            print("Leaf: " + str(torch.max(self.concat_leaves.val)))
+
+            for (i, layer) in enumerate(self.layers):
+                type = str(layer.__class__)
+                print(type + " layer " + str(i) + " :" + str(layer.val))
 
         return self.val
 
@@ -81,15 +90,21 @@ class MatrixSPN(torch.nn.Module):
 
         self.leaves = leaves
         concatenated_leaves = self.network.AddConcatLayer(leaves)
+        self.concat_leaves = concatenated_leaves
 
         return concatenated_leaves
 
     def generate_network(self):
-        structure = ConvSPN(self.x_size, self.y_size, self.sum_shifts, self.prd_subdivs)
-        metadata = CVMetaData(structure)
+        structure = ConvSPN(
+            self.x_size,
+            self.y_size,
+            self.sum_shifts,
+            self.prd_subdivs)
 
         if debug:
             structure.print_stat()
+
+        metadata = CVMetaData(structure)
 
         # create leaves
         leaves = self.generate_leaves(metadata)
@@ -119,18 +134,20 @@ class MatrixSPN(torch.nn.Module):
                     cur_layer,
                     mask)
 
+            self.layers.append(cur_layer)
             prev_layer = cur_layer
 
         self.root = prev_layer
 
-
 x_size = 32
 y_size = 32
-mspn = MatrixSPN(32, 32, 8, 2)
+mspn = MatrixSPN(x_size, y_size, 8, 2)
 
-fake_input = np.ones(x_size * y_size)
+# fake_input = np.random.rand(x_size * y_size)
+fake_input = np.zeros(x_size * y_size)
 mspn.feed(fake_input)
 
-prob = mspn()
+prob = mspn.forward()
+print(prob)
 
 pdb.set_trace()
