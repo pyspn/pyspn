@@ -282,6 +282,9 @@ class ConvSPN(object):
         print(str(total_edges) + " edges")
 
     def naive_traverse_by_level(self):
+        '''
+        Traverse the SPN as if subtree sharing isn't implemented. This would take too long on large SPNs.
+        '''
         q = deque([self.root])
 
         level = 0
