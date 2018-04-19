@@ -16,8 +16,10 @@ class Layer(object):
 
 class CVMetaData(object):
     def __init__(self, cv):
+        self.depth = 0
         self.level_label_by_node = {}
         self.num_nodes_by_level = []
+        self.nodes_by_level = []
 
         self.get_cv_metadata(cv)
 
@@ -50,48 +52,42 @@ class CVMetaData(object):
                     visited[child] = True
                     q.append(child)
 
+            self.nodes_by_level.append(curr_level)
             self.num_nodes_by_level.append(len(curr_level))
             for (label, node) in enumerate(curr_level):
                 self.level_label_by_node[node] = label
             level += 1
 
-# def get_layers(cv):
-#     '''
-#     Returns a TorchSPN style layer information corresponding to ConvSPN cv
-#     '''
-#
-#     level = 0
-#     q = deque([cv.root])
-#
-#     # Perform a per level traversal
-#     while q:
-#         level_size = len(q)
-#
-#         curr_level = [] # nodes at the current level
-#         visited = {} # ensures dedup
-#         for i in range(level_size):
-#             node = q.popleft()
-#             curr_level.append(node)
-#             for child in node.children:
-#                 if child in visited:
-#                     continue
-#                 visited[child] = True
-#                 q.append(child)
-#
-#         level += 1
+        self.depth = level
 
-'''
-TODO:
-1. Confirm correctness of metadata
-2. Use metadata to generate connection without having to temporarily store 2 levels
-'''
+def get_layers(cv):
+    '''
+    Returns a TorchSPN style layer information corresponding to ConvSPN cv
+    '''
 
+    metadata = CVMetaData(cv)
+    masks_by_level = []
+    for cur_level in range(metadata.depth - 1):
+        next_level = cur_level + 1
+        cur_level_count = metadata.num_nodes_by_level[cur_level]
+        next_level_count = metadata.num_nodes_by_level[next_level]
+
+        level_mask = np.zeros((cur_level_count, next_level_count))
+
+        cur_level_nodes = metadata.nodes_by_level[cur_level]
+        for cur_node in  cur_level_nodes:
+            cur_label = metadata.level_label_by_node[cur_node]
+            for child_node in cur_node.children:
+                child_label = metadata.level_label_by_node[child_node]
+                level_mask[cur_label][child_label] = 1
+
+        masks_by_level.append(level_mask)
+
+    return masks_by_level
 
 cv = ConvSPN(32, 32, 8, 2)
 cv.generate_spn()
 
 cv.print_stat()
 
-cv_metadata = CVMetaData(cv)
-print(cv_metadata.num_nodes_by_level)
-print(cv_metadata.level_label_by_node)
+pdb.set_trace()
