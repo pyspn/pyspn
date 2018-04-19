@@ -69,6 +69,8 @@ class ConvSPN(object):
         self.reused_prd = 0
         self.count_by_depth = defaultdict(int)
 
+        self.generate_spn()
+
     def generate_spn(self):
         root_scope = Scope(0, 0, self.x_size, self.y_size)
         self.root = self.generate_sum(root_scope, 0)
@@ -172,8 +174,8 @@ class ConvSPN(object):
         if x_stride == 0 or y_stride == 0:
             return []
 
-        x_max = min(self.sum_shifts, scope.x_size)
-        y_max = min(self.sum_shifts, scope.y_size)
+        x_max = int(min(self.sum_shifts, scope.x_size))
+        y_max = int(min(self.sum_shifts, scope.y_size))
         x_offsets = [i * x_stride for i in range(x_max)]
         y_offsets = [i * y_stride for i in range(y_max)]
 
@@ -218,8 +220,8 @@ class ConvSPN(object):
         if x_size == 0 or y_size == 0:
             return []
 
-        x_max = min(self.prd_subdivs, scope.x_size)
-        y_max = min(self.prd_subdivs, scope.y_size)
+        x_max = int(min(self.prd_subdivs, scope.x_size))
+        y_max = int(min(self.prd_subdivs, scope.y_size))
         x_offsets = [i * x_size for i in range(x_max)]
         y_offsets = [i * y_size for i in range(y_max)]
 
@@ -288,6 +290,9 @@ class ConvSPN(object):
         print(str(total_edges) + " edges")
 
     def naive_traverse_by_level(self):
+        '''
+        Traverse the SPN as if subtree sharing isn't implemented. This would take too long on large SPNs.
+        '''
         q = deque([self.root])
 
         level = 0
