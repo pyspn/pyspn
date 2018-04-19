@@ -28,7 +28,23 @@ class MatrixSPN(torch.nn.Module):
         self.parameters = param.Param()
         self.root = None
 
+        self.val_dict = None
+        self.cond_mask_dict = None
+
         self.generate_network()
+
+    def feed(self, val_dict={}, cond_mask_dict={}):
+        self.val_dict = val_dict
+        self.cond_mask_dict = cond_mask_dict
+
+    def forward(self):
+        self.val = self.network.ComputeProbability(
+            val_dict=self.val_dict,
+            cond_mask_dict=self.cond_mask_dict,
+            grad=True,
+            log=True)
+
+        return self.val
 
     def initialize_weights_from_mask(self, mask):
         weights = np.random.normal(1, 0.2, mask.shape).astype('float32')
