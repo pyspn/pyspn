@@ -85,8 +85,21 @@ def get_layers(cv):
 
     return masks_by_level
 
+def get_edge_count_from_layers(cv_layers):
+    '''
+    Was used to test the correctness of edge count in the conversion
+    '''
+
+    edge_count = []
+    for layer in cv_layers:
+        edge_count.append(np.count_nonzero(layer))
+
+    return edge_count
+
 cv = ConvSPN(32, 32, 8, 2)
 cv.generate_spn()
+
+cv_layers = get_layers(cv)
 
 cv.print_stat()
 
