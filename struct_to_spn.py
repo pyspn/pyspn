@@ -11,6 +11,11 @@ from matrix_gen import *
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param
 
+debug = True
+def dbg(debug_text):
+    if debug:
+        print(debug_text)
+
 class MatrixSPN(torch.nn.Module):
     def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, is_cuda = False):
         '''
@@ -26,16 +31,22 @@ class MatrixSPN(torch.nn.Module):
 
         self.network = network.Network(is_cuda = is_cuda)
         self.parameters = param.Param()
+
         self.root = None
+        self.leaves = []
 
         self.val_dict = None
         self.cond_mask_dict = None
 
         self.generate_network()
 
-    def feed(self, val_dict={}, cond_mask_dict={}):
-        self.val_dict = val_dict
-        self.cond_mask_dict = cond_mask_dict
+    def feed(self, input):
+        self.val_dict = {}
+        self.cond_mask_dict = {}
+
+        for (i, leaf) in enumerate(self.leaves):
+            self.val_dict[leaf] = np.array([[ input[i] ]])
+            self.cond_mask_dict[leaf] = np.array([[ 0 ]])
 
     def forward(self):
         self.val = self.network.ComputeProbability(
@@ -68,6 +79,7 @@ class MatrixSPN(torch.nn.Module):
                 parameters=self.parameters)
             leaves.append(leaf)
 
+        self.leaves = leaves
         concatenated_leaves = self.network.AddConcatLayer(leaves)
 
         return concatenated_leaves
@@ -75,6 +87,9 @@ class MatrixSPN(torch.nn.Module):
     def generate_network(self):
         structure = ConvSPN(self.x_size, self.y_size, self.sum_shifts, self.prd_subdivs)
         metadata = CVMetaData(structure)
+
+        if debug:
+            structure.print_stat()
 
         # create leaves
         leaves = self.generate_leaves(metadata)
@@ -109,6 +124,13 @@ class MatrixSPN(torch.nn.Module):
         self.root = prev_layer
 
 
+x_size = 32
+y_size = 32
 mspn = MatrixSPN(32, 32, 8, 2)
+
+fake_input = np.ones(x_size * y_size)
+mspn.feed(fake_input)
+
+prob = mspn()
 
 pdb.set_trace()

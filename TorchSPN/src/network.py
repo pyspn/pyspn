@@ -7,10 +7,8 @@ import os.path
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append('../exp/')
 
-from src import nodes
-from src import edges
+from src import nodes, edges, gl
 import numpy as np
 
 class Network(torch.nn.Module):

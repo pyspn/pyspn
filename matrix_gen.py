@@ -82,7 +82,7 @@ class CVMetaData(object):
             cur_level_count = self.num_nodes_by_level[cur_level]
             next_level_count = self.num_nodes_by_level[next_level]
 
-            level_mask = np.zeros((cur_level_count, next_level_count))
+            level_mask = np.zeros((cur_level_count, next_level_count)).astype('float32')
 
             cur_level_nodes = self.nodes_by_level[cur_level]
             for cur_node in  cur_level_nodes:
@@ -91,6 +91,7 @@ class CVMetaData(object):
                     child_label = self.level_label_by_node[child_node]
                     level_mask[cur_label][child_label] = 1
 
+            level_mask = level_mask.T
             masks_by_level.append(level_mask)
 
         return masks_by_level
