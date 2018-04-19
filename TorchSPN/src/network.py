@@ -3,14 +3,16 @@
 import torch
 from torch.autograd import Variable as Variable
 
+import os.path
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append('../exp/')
+
 from src import nodes
 from src import edges
 import numpy as np
 
-import sys
-sys.path.append('../exp/')
-
-import gl as gl
 class Network(torch.nn.Module):
     '''
     A particular SPN structure, whose parameters are in Param
