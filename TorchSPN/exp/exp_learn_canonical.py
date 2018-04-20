@@ -145,4 +145,3 @@ for epoch in range(1000):
                 val_loss += logp
             print('Epoch {}, Train loss {}, Val loss {}'.format(epoch, train_loss/100., val_loss/len(val)))
             train_loss = 0
-
