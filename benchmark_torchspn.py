@@ -21,9 +21,10 @@ mspn = MatrixSPN(x_size, y_size, 8, 2, is_cuda=cuda.is_available())
 epochs = 10
 total_iter = 1000
 
+print("SPN generated")
 start = timer()
 for epoch in range(epochs):
-    # print("Epoch "+str(epoch))
+    print("Epoch "+str(epoch))
     for i in range(total_iter):
         fake_input = np.zeros(x_size * y_size)
         mspn.feed(fake_input)
@@ -35,3 +36,11 @@ end = timer()
 print("Done " + str(end - start) + "s")
 
 pdb.set_trace()
+
+'''
+Exp1
+10 epochs, 1000 data
+32x32, 8 sum, 2 prd
+
+53s
+'''

@@ -128,8 +128,8 @@ class MatrixSPN(torch.nn.Module):
         metadata = CVMetaData(structure)
 
         # create leaves
-        # leaves = self.generate_gaussian_leaves(metadata)
-        leaves = self.generate_multinomial_leaves(metadata)
+        leaves = self.generate_gaussian_leaves(metadata)
+        # leaves = self.generate_multinomial_leaves(metadata)
 
         # create layers bottom-up
         prev_layer = leaves
