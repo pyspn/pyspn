@@ -31,13 +31,13 @@ class CVMetaData(object):
 
         level = 0
         q = deque([cv.root])
+        visited = {}
 
         # Perform a per level traversal
         while q:
             level_size = len(q)
 
             curr_level = [] # nodes at the current level
-            visited = {}
             level_type = None
             for i in range(level_size):
                 node = q.popleft()

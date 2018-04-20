@@ -38,14 +38,14 @@ class Node(object):
 
 
 class Sum(Node):
-    def __init__(self, scope, node_type):
-        Node.__init__(self, scope, node_type)
+    def __init__(self, scope):
+        Node.__init__(self, scope, node_type="Sum")
         self.weights = []
 
 
 class Product(Node):
-    def __init__(self, scope, node_type):
-        Node.__init__(self, scope, node_type)
+    def __init__(self, scope):
+        Node.__init__(self, scope, node_type="Product")
 
 
 class ConvSPN(object):
@@ -104,7 +104,7 @@ class ConvSPN(object):
         self.count_by_depth[depth] += 1
 
         # Generate root and all of its child products from shifts
-        root = Sum(scope, node_type="Sum")
+        root = Sum(scope)
         root.id = scope.id
         root.depth = depth
 
@@ -124,6 +124,10 @@ class ConvSPN(object):
         self.depth = max(self.depth, depth)
         child_depth = depth + 1
 
+        # Check if we have a leaf node
+        if scope.x_size == 1 and scope.y_size == 1:
+            return self.generate_leaf(scope, child_depth)
+
         # Return cached prd if available
         cached_prd = self.get_cached_prd(scope)
         if cached_prd:
@@ -134,7 +138,7 @@ class ConvSPN(object):
         self.count_by_depth[depth] += 1
 
         # Generate root and all of its child sums from subdivisions
-        root = Product(scope, node_type="Product")
+        root = Product(scope)
         root.id = scope.id
         root.depth = depth
 
@@ -187,8 +191,24 @@ class ConvSPN(object):
                     scope.y_ori + y_offset,
                     scope.x_size,
                     scope.y_size)
-
                 shifts.append(shift)
+
+                '''
+                Clips scope to parent's scope.
+                The assumption wrt size ordering would be messed up, so matrix generation
+                doesn't work as neat as we'd like it to be. Figure this out soon.
+                '''
+                # x_ori = scope.x_ori + x_offset
+                # y_ori = scope.y_ori + y_offset
+                #
+                # # ensure that the end doesn't get out of the scope
+                # x_end = min(scope.x_end, x_ori + scope.x_size - 1)
+                # y_end = min(scope.y_end, y_ori + scope.y_size - 1)
+                #
+                # x_size = x_end - x_ori + 1
+                # y_size = y_end - y_ori + 1
+                #
+                # shift = Scope(x_ori, y_ori, x_size, y_size)
 
         return shifts
 
@@ -257,12 +277,13 @@ class ConvSPN(object):
         level = 0
         total_nodes = 0
         total_edges = 0
+        visited = {}
+
         while q:
             level_size = len(q)
             node_count = 0
             edge_count = 0
 
-            visited = {}
             while level_size:
                 u = q.popleft()
                 level_size -= 1
@@ -382,12 +403,5 @@ def check_validity(root):
             else:
                 return (-1, False)
     return root.id, True
-
-
-cv = ConvSPN(32, 32, 8, 2)
-cv.generate_spn()
-root_id, flag = check_validity(cv.root)
-print(flag)
-cv.print_stat()
 
 # pdb.set_trace()

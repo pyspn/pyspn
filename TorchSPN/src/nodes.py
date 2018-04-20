@@ -187,7 +187,10 @@ class ProductNodes(Nodes):
         # with size: batch x num_lower
         for e in self.child_edges:
             # log space
-            val += torch.mm(e.child.val, e.mask)
+            child_mul = torch.mm(e.child.val, e.mask)
+            child_mul[(child_mul != child_mul).detach()] = 0 # replace all nan to 0
+
+            val += child_mul
             '''
             # original space
             num_child = e.child.num  # Is this variable going to be used?
