@@ -1,4 +1,3 @@
-import pdb
 from collections import defaultdict, deque
 from struct_gen import *
 
@@ -15,19 +14,22 @@ class TachyonFileGenerator(object):
 
         print("Nodes: " + str(len(flattened_spn)))
 
-        # pdb.set_trace()
-
         return self.generate_node_text(flattened_spn, labels_by_node) + \
             self.generate_edges_text(flattened_spn, labels_by_node)
 
     def flatten_spn(self, cv):
-        q = deque([cv.root])
+        # create a fake product root node
+        root = Product(cv.root.scope)
+        root.children.append(cv.root)
+
+        q = deque([root])
 
         flattened_spn = []
         labels_by_node = {}
         visited = {}
 
         label = 0
+
         while q:
             level_size = len(q)
             print(level_size)
@@ -102,11 +104,3 @@ class TachyonFileGenerator(object):
         edges_text = ''.join(all_edges_text)
 
         return edges_text
-
-cv = ConvSPN(32, 32, 8, 2)
-cv.print_stat()
-
-tf = TachyonFileGenerator(cv)
-tf.write_to_file('cv.spn')
-
-# pdb.set_trace()
