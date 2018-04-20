@@ -124,10 +124,6 @@ class ConvSPN(object):
         self.depth = max(self.depth, depth)
         child_depth = depth + 1
 
-        # Check if we have a leaf node
-        if scope.x_size == 1 and scope.y_size == 1:
-            return self.generate_leaf(scope, child_depth)
-
         # Return cached prd if available
         cached_prd = self.get_cached_prd(scope)
         if cached_prd:

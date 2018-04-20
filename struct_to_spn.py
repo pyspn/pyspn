@@ -29,7 +29,7 @@ class MatrixSPN(torch.nn.Module):
         self.prd_subdivs = prd_subdivs
         self.is_cuda = is_cuda
 
-        self.network = network.Network(is_cuda = is_cuda)
+        self.network = network.Network(is_cuda=is_cuda)
         self.parameters = param.Param()
 
         self.root = None
@@ -41,13 +41,14 @@ class MatrixSPN(torch.nn.Module):
         self.cond_mask_dict = None
 
         self.generate_network()
+        self.setup_parameters()
 
-    def feed(self, input):
+    def feed(self, data):
         self.val_dict = {}
         self.cond_mask_dict = {}
 
         for (i, leaf) in enumerate(self.leaves):
-            self.val_dict[leaf] = np.array([[ input[i] ]])
+            self.val_dict[leaf] = np.array([[ data[i] ]])
             self.cond_mask_dict[leaf] = np.array([[ 0 ]])
 
     def forward(self):
@@ -70,7 +71,27 @@ class MatrixSPN(torch.nn.Module):
         weights = np.random.normal(1, 0.2, mask.shape).astype('float32')
         return weights.clip(min=0.5,max=1.5)
 
-    def generate_leaves(self, metadata):
+    def generate_multinomial_leaves(self, metadata):
+        num_leaves = metadata.num_nodes_by_level[-1]
+
+        list_prob = [
+            np.array([
+                [0.6],
+                [0.4]
+            ])
+        ] * num_leaves
+        leaves = self.network.AddMultinomialNodes(
+            n_variable=num_leaves,
+            n_out=1,
+            list_n_values=[2] *  num_leaves,
+            list_prob=list_prob,
+            parameters=self.parameters)
+
+        self.leaves = [leaves]
+
+        return leaves
+
+    def generate_gaussian_leaves(self, metadata):
         num_leaves = metadata.num_nodes_by_level[-1]
 
         leaves = []
@@ -107,7 +128,8 @@ class MatrixSPN(torch.nn.Module):
         metadata = CVMetaData(structure)
 
         # create leaves
-        leaves = self.generate_leaves(metadata)
+        leaves = self.generate_gaussian_leaves(metadata)
+        # leaves = self.generate_multinomial_leaves(metadata)
 
         # create layers bottom-up
         prev_layer = leaves
@@ -138,3 +160,7 @@ class MatrixSPN(torch.nn.Module):
             prev_layer = cur_layer
 
         self.root = prev_layer
+
+    def setup_parameters(self):
+        self.parameters.register(self.network)
+        self.parameters.proj()
