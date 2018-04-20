@@ -11,7 +11,7 @@ from matrix_gen import *
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
-debug = True
+debug = False
 def dbg(debug_text):
     if debug:
         print(debug_text)
@@ -138,16 +138,3 @@ class MatrixSPN(torch.nn.Module):
             prev_layer = cur_layer
 
         self.root = prev_layer
-
-x_size = 32
-y_size = 32
-mspn = MatrixSPN(x_size, y_size, 8, 2)
-
-# fake_input = np.random.rand(x_size * y_size)
-fake_input = np.zeros(x_size * y_size)
-mspn.feed(fake_input)
-
-prob = mspn.forward()
-print(prob)
-
-pdb.set_trace()
