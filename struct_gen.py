@@ -335,8 +335,8 @@ def overlap(scope1, scope2):
     '''
     Two scopes overlap if they have some common elements between them
     '''
-    scope1 = (int(scope1[0]), int(scope1[2]), int(scope1[4]), int(scope1[6]))
-    scope2 = (int(scope2[0]), int(scope2[2]), int(scope2[4]), int(scope2[6]))
+    scope1 = list(map(int, scope1.split('_')))
+    scope2 = list(map(int, scope2.split('_')))
     x_ori_1 = scope1[0]  # xo1
     x_end_1 = scope1[2]  # xe1
     y_ori_1 = scope1[1]  # yo1
