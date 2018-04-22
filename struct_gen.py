@@ -463,5 +463,3 @@ def check_validity(root):
             else:
                 return (-1, False)
     return root.id, True
-
-# pdb.set_trace()

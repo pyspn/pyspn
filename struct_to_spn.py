@@ -136,10 +136,10 @@ class MatrixSPN(torch.nn.Module):
         for level in reversed(range(metadata.depth - 1)):
             type = metadata.type_by_level[level]
             num_nodes = metadata.num_nodes_by_level[level]
-            mask = metadata.masks_by_level[level]
 
             cur_layer = None
             if type == sum_type:
+                mask = metadata.masks_by_level[level]
                 cur_layer = self.network.AddSumNodes(num_nodes)
                 weights = self.initialize_weights_from_mask(mask)
 
@@ -150,11 +150,20 @@ class MatrixSPN(torch.nn.Module):
                     mask,
                     parameters=self.parameters)
             else:
-                cur_layer = self.network.AddProductNodes(num_nodes)
-                self.network.AddProductEdges(
+                connections = metadata.connections_by_level[level]
+                cur_layer = self.network.AddSparseProductNodes(num_nodes)
+                self.network.AddSparseProductEdges(
                     prev_layer,
                     cur_layer,
-                    mask)
+                    connections)
+
+                # NOTE: Below, we use dense connections
+                # mask = metadata.masks_by_level[level]
+                # cur_layer = self.network.AddProductNodes(num_nodes)
+                # self.network.AddProductEdges(
+                #     prev_layer,
+                #     cur_layer,
+                #     mask)
 
             self.layers.append(cur_layer)
             prev_layer = cur_layer

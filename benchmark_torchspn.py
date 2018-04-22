@@ -14,8 +14,10 @@ x_size = 32
 y_size = 32
 mspn = MatrixSPN(x_size, y_size, 8, 2, is_cuda=cuda.is_available())
 
-# opt = optim.SGD( mspn.network.parameters(), lr=.003)
-# mspn.zero_grad()
+params = mspn.network.parameters()
+
+opt = optim.SGD( params, lr=.003)
+mspn.network.zero_grad()
 
 epochs = 10
 total_iter = 10
@@ -28,9 +30,9 @@ for epoch in range(epochs):
         fake_input = np.zeros(x_size * y_size)
         mspn.feed(fake_input)
         mspn.forward()
-        # opt.step()
-        # mspn.zero_grad()
-        # parameters.proj()
+        opt.step()
+        mspn.network.zero_grad()
+        mspn.parameters.proj()
 end = timer()
 
 print("Done " + str(end - start) + "s")
@@ -39,8 +41,8 @@ pdb.set_trace()
 
 '''
 Exp1
-10 epochs, 1000 data
+10 epochs, 10 data
 32x32, 8 sum, 2 prd
 
-53s
+
 '''
