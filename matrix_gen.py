@@ -13,6 +13,7 @@ class CVMetaData(object):
     def __init__(self, cv):
         self.depth = 0
         self.masks_by_level = []
+        self.connections_by_level = []
         self.type_by_level = []
 
         # internal properties
@@ -70,11 +71,36 @@ class CVMetaData(object):
 
         self.depth = level
 
+        self.connections_by_level = self.get_connections_by_level(cv)
         self.masks_by_level = self.get_masks_by_level(cv)
+
+
+    def get_connections_by_level(self, cv):
+        '''
+        Returns TorchSPN style sparse connection corresponding to ConvSPN cv
+        '''
+        connections_by_level = []
+        for cur_level in range(self.depth - 1):
+            next_level = cur_level + 1
+            cur_level_count = self.num_nodes_by_level[cur_level]
+            next_level_count = self.num_nodes_by_level[next_level]
+
+            level_connections = defaultdict(list)
+
+            cur_level_nodes = self.nodes_by_level[cur_level]
+            for cur_node in cur_level_nodes:
+                cur_label = self.level_label_by_node[cur_node]
+                for child_node in cur_node.children:
+                    child_label = self.level_label_by_node[child_node]
+                    level_connections[cur_label].append(child_label)
+
+            connections_by_level.append(level_connections)
+
+        return connections_by_level
 
     def get_masks_by_level(self, cv):
         '''
-        Returns a TorchSPN style layer information corresponding to ConvSPN cv
+        Returns a TorchSPN style matrix layer information corresponding to ConvSPN cv
         '''
         masks_by_level = []
         for cur_level in range(self.depth - 1):
