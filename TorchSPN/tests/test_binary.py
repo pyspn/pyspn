@@ -101,6 +101,6 @@ Z = net()
 Z = float(Z.data.numpy())
 print('Z      :',  Z)
 
-print('prob   :',  p_tilde / Z)
+# print('prob   :',  p_tilde / Z)
 
 print('\nSo far so good for execution (no guarantee for semantics)')

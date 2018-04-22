@@ -5,6 +5,17 @@ import numpy as np
 
 EPSILON = 0.00001
 
+class SparseProductEdges():
+    def __init__(self, child, parent, connections):
+        self.parent = parent
+        self.child = child
+        self.connections = connections
+
+class SparseSumEdges():
+    def __init__(self, child, parent, connection_weights):
+        self.parent = parent
+        self.child = child
+        self.connection_weights = connection_weights
 
 class ProductEdges():
     '''
