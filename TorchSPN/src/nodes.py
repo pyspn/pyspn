@@ -3,6 +3,7 @@
 import torch
 from torch.autograd import Variable as Variable
 import numpy as np
+import pdb
 
 EPSILON = 0.001
 
@@ -153,6 +154,35 @@ class SumNodes(Nodes):
         self.val += maxval
         return self.val
 
+class SparseProductNodes(Nodes):
+    def __init__(self, is_cuda, num=1):
+        Nodes.__init__(self, is_cuda).__init__()
+        self.num = num
+        self.child_edges = []
+        self.parent_edges = []
+        self.val = None
+
+    def forward(self):
+        batch = self.child_edges[0].child.val.size()[0]
+        val = self.var(torch.zeros((batch, self.num)))
+
+        # TODO: Implement batch forward
+
+        for e in self.child_edges:
+            child_val = e.child.val
+
+            # print("Child_val " + str(child_val))
+            # print("Connections " + str(e.connections))
+            # pdb.set_trace()
+
+            for i in range(self.num):
+                for child_idx in e.connections[i]:
+                    # NOTE: x += a doesn't work for some reason
+                    new_val = val[0, i] + child_val[0, child_idx]
+                    val[0, i] = new_val
+
+        self.val = val
+        return val
 
 class ProductNodes(Nodes):
     '''
@@ -187,10 +217,7 @@ class ProductNodes(Nodes):
         # with size: batch x num_lower
         for e in self.child_edges:
             # log space
-            child_mul = torch.mm(e.child.val, e.mask)
-            child_mul[(child_mul != child_mul).detach()] = 0 # replace all nan to 0
-
-            val += child_mul
+            val += torch.mm(e.child.val, e.mask)
             '''
             # original space
             num_child = e.child.num  # Is this variable going to be used?

@@ -1,13 +1,15 @@
-#!/usr/bin/env python3
-
 import numpy as np
+import torch
+from torch import optim, cuda
+import pdb
+import math
+from collections import defaultdict, deque
+from struct_to_spn import *
 import os.path
-import sys
+from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from src import param
-from src import network
+from TorchSPN.src import network, param, nodes
 
 parameters = param.Param()
 
@@ -29,6 +31,18 @@ list_prob = [
     ])
 ]
 
+def mask_to_connections(mask):
+    connections = defaultdict(list)
+    num_child_nodes = mask.shape[0]
+    num_parent_nodes = mask.shape[1]
+
+    for child_idx in range(num_child_nodes):
+        for parent_idx in range(num_parent_nodes):
+            if mask[child_idx][parent_idx]:
+                connections[parent_idx].append(child_idx)
+
+    return connections
+
 multinomial = network_config.AddMultinomialNodes(
     n_variable=3,
     n_out=2,
@@ -37,13 +51,18 @@ multinomial = network_config.AddMultinomialNodes(
     parameters=parameters)
 # with size: 6 (= 3 * 2)
 
-prod = network_config.AddProductNodes(3)
+# prod = network_config.AddProductNodes(3)
+sparse_prod = network_config.AddSparseProductNodes(3)
 # with size: 3
 
 mask = np.array(
     [[1, 1, 0], [0, 0, 1], [1, 0, 0], [0, 1, 1], [1, 0, 1], [0, 1, 0]],
     dtype='float32')
-edge_prod = network_config.AddProductEdges(multinomial, prod, mask)
+
+connections = mask_to_connections(mask)
+
+# edge_prod = network_config.AddProductEdges(multinomial, prod, mask)
+sparse_edge_prod = network_config.AddSparseProductEdges(multinomial, sparse_prod, connections)
 
 sum_final = network_config.AddSumNodes(1)
 
@@ -52,7 +71,7 @@ weights = np.array(
     dtype='float32')  # weights always have a shape: lower layer x upper layer
 
 edge_sum = network_config.AddSumEdges(
-    prod, sum_final, weights, parameters=parameters)
+    sparse_prod, sum_final, weights, parameters=parameters)
 
 #################################################
 # fee value

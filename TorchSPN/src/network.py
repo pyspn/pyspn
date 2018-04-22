@@ -199,6 +199,11 @@ class Network(torch.nn.Module):
         self.nodelist.append(_nodes)
         return _nodes
 
+    def AddSparseProductNodes(self, num):
+        _nodes = nodes.SparseProductNodes(is_cuda=self.is_cuda, num=num)
+        self.nodelist.append(_nodes)
+        return _nodes
+
     def AddProductNodes(self, num):
         '''
         Add a set of product nodes to Network
@@ -208,6 +213,13 @@ class Network(torch.nn.Module):
         _nodes = nodes.ProductNodes(is_cuda=self.is_cuda, num=num)
         self.nodelist.append(_nodes)
         return _nodes
+
+    def AddSparseProductEdges(self, lower, upper, connections):
+        _edges = edges.SparseProductEdges(lower, upper, connections)
+        upper.child_edges.append(_edges)
+        lower.parent_edges.append(_edges)
+
+        return _edges
 
     def AddProductEdges(self, lower, upper, mask=None):
         '''
