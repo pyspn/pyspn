@@ -150,20 +150,20 @@ class MatrixSPN(torch.nn.Module):
                     mask,
                     parameters=self.parameters)
             else:
-                connections = metadata.connections_by_level[level]
-                cur_layer = self.network.AddSparseProductNodes(num_nodes)
-                self.network.AddSparseProductEdges(
-                    prev_layer,
-                    cur_layer,
-                    connections)
-
-                # NOTE: Below, we use dense connections
-                # mask = metadata.masks_by_level[level]
-                # cur_layer = self.network.AddProductNodes(num_nodes)
-                # self.network.AddProductEdges(
+                # connections = metadata.connections_by_level[level]
+                # cur_layer = self.network.AddSparseProductNodes(num_nodes)
+                # self.network.AddSparseProductEdges(
                 #     prev_layer,
                 #     cur_layer,
-                #     mask)
+                #     connections)
+
+                # NOTE: Below, we use dense connections
+                mask = metadata.masks_by_level[level]
+                cur_layer = self.network.AddProductNodes(num_nodes)
+                self.network.AddProductEdges(
+                    prev_layer,
+                    cur_layer,
+                    mask)
 
             self.layers.append(cur_layer)
             prev_layer = cur_layer

@@ -169,17 +169,12 @@ class SparseProductNodes(Nodes):
         # TODO: Implement batch forward
 
         for e in self.child_edges:
-            child_val = e.child.val
-
-            # print("Child_val " + str(child_val))
-            # print("Connections " + str(e.connections))
-            # pdb.set_trace()
+            child_val = e.child.val[0]
 
             for i in range(self.num):
-                for child_idx in e.connections[i]:
-                    # NOTE: x += a doesn't work for some reason
-                    new_val = val[0, i] + child_val[0, child_idx]
-                    val[0, i] = new_val
+                if e.connections[i]:
+                    indices = e.connections[i]
+                    val[0, i] = torch.sum(child_val[indices])
 
         self.val = val
         return val
