@@ -17,7 +17,7 @@ def dbg(debug_text):
         print(debug_text)
 
 class MatrixSPN(torch.nn.Module):
-    def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, is_cuda = False):
+    def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, shared_parameters, is_cuda = False):
         '''
         Initialize the lists of nodes and edges
         '''
@@ -30,7 +30,7 @@ class MatrixSPN(torch.nn.Module):
         self.is_cuda = is_cuda
 
         self.network = network.Network(is_cuda=is_cuda)
-        self.parameters = param.Param()
+        self.shared_parameters = shared_parameters
 
         self.root = None
         self.leaves = []
@@ -41,7 +41,7 @@ class MatrixSPN(torch.nn.Module):
         self.cond_mask_dict = None
 
         self.generate_network()
-        self.setup_parameters()
+        # self.setup_parameters()
 
     def feed(self, data):
         self.val_dict = {}
@@ -85,7 +85,7 @@ class MatrixSPN(torch.nn.Module):
             n_out=1,
             list_n_values=[2] *  num_leaves,
             list_prob=list_prob,
-            parameters=self.parameters)
+            parameters=self.shared_parameters)
 
         self.leaves = [leaves]
 
@@ -106,7 +106,7 @@ class MatrixSPN(torch.nn.Module):
             leaf = self.network.AddGaussianNodes(
                 mean,
                 std,
-                parameters=self.parameters)
+                parameters=self.shared_parameters)
             leaves.append(leaf)
 
         self.leaves = leaves
@@ -148,7 +148,7 @@ class MatrixSPN(torch.nn.Module):
                     cur_layer,
                     weights,
                     mask,
-                    parameters=self.parameters)
+                    parameters=self.shared_parameters)
             else:
                 # connections = metadata.connections_by_level[level]
                 # cur_layer = self.network.AddSparseProductNodes(num_nodes)
@@ -171,5 +171,5 @@ class MatrixSPN(torch.nn.Module):
         self.root = prev_layer
 
     def setup_parameters(self):
-        self.parameters.register(self.network)
-        self.parameters.proj()
+        self.shared_parameters.register(self)
+        self.shared_parameters.proj()

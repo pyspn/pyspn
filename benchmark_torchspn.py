@@ -10,11 +10,14 @@ from timeit import default_timer as timer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
+shared_parameters = param.Param()
+
 x_size = 32
 y_size = 32
-mspn = MatrixSPN(x_size, y_size, 8, 2, is_cuda=cuda.is_available())
+mspn = MatrixSPN(
+    x_size, y_size, 8, 2, shared_parameters, is_cuda=cuda.is_available())
 
-params = mspn.network.parameters()
+params = mspn.parameters()
 
 opt = optim.SGD( params, lr=.003)
 mspn.network.zero_grad()
@@ -33,7 +36,7 @@ for epoch in range(epochs):
         print(prob)
         opt.step()
         mspn.network.zero_grad()
-        mspn.parameters.proj()
+        shared_parameters.proj()
 end = timer()
 
 print("Done " + str(end - start) + "s")
@@ -47,5 +50,11 @@ Exp1
 
 Dense: 66s
 Sparse: 172s
+'''
 
+
+'''
+Define nodes as layers, connect nodes
+
+Multiply by 1/|unobserved|
 '''
