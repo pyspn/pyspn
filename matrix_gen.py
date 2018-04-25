@@ -52,9 +52,7 @@ class CVMetaData(object):
                         level_type = node_type
                     elif node_type != level_type:
                         error = "Level type mismatch: Expects " + level_type + " gets " + node_type
-                        print(error)
                         raise Exception(error)
-
 
                 for child in node.children:
                     if child in visited:
@@ -63,6 +61,11 @@ class CVMetaData(object):
                     q.append(child)
 
             self.type_by_level.append(level_type)
+
+            # Ensure that leaves are in order.
+            if level_type == None:
+                curr_level = self.order_leaves(cv, curr_level)
+
             self.nodes_by_level.append(curr_level)
             self.num_nodes_by_level.append(len(curr_level))
             for (label, node) in enumerate(curr_level):
@@ -74,6 +77,15 @@ class CVMetaData(object):
         self.connections_by_level = self.get_connections_by_level(cv)
         self.masks_by_level = self.get_masks_by_level(cv)
 
+    def order_leaves(self, cv, leaves):
+        size = cv.x_size * cv.y_size
+        ordered_leaves = [None for i in range(size)]
+
+        for leaf in leaves:
+            idx = leaf.x + leaf.y * cv.y_size
+            ordered_leaves[idx] = leaf
+
+        return ordered_leaves
 
     def get_connections_by_level(self, cv):
         '''

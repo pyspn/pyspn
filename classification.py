@@ -30,7 +30,7 @@ class ClassifierSPN(object):
         self.selected_class_spn = None
         self.selected_class_weight = None
         self.generate_spn()
-        self.
+        # self.
 
     def parameter(self, tensor, requires_grad=True):
         if self.is_cuda:
@@ -85,33 +85,32 @@ class ClassifierSPN(object):
 
 x_size = 32
 y_size = 32
-mspn = MatrixSPN(x_size, y_size, 8, 2, is_cuda=cuda.is_available())
+params = param.Param()
+mspn = MatrixSPN(x_size, y_size, 8, 2, params, is_cuda=cuda.is_available())
 
-params = mspn.network.parameters()
-
-opt = optim.SGD( params, lr=.003)
-mspn.network.zero_grad()
-
-epochs = 10
-total_iter = 10
-
-print("SPN generated")
-start = timer()
-for epoch in range(epochs):
-    print("Epoch "+str(epoch))
-    for i in range(total_iter):
-        fake_input = np.zeros(x_size * y_size)
-        mspn.feed(fake_input)
-        prob = mspn.forward()
-        print(prob)
-        opt.step()
-        mspn.network.zero_grad()
-        mspn.parameters.proj()
-end = timer()
-
-print("Done " + str(end - start) + "s")
-
-pdb.set_trace()
+# opt = optim.SGD( params, lr=.003)
+# mspn.network.zero_grad()
+#
+# epochs = 10
+# total_iter = 10
+#
+# print("SPN generated")
+# start = timer()
+# for epoch in range(epochs):
+#     print("Epoch "+str(epoch))
+#     for i in range(total_iter):
+#         fake_input = np.zeros(x_size * y_size)
+#         mspn.feed(fake_input)
+#         prob = mspn.forward()
+#         print(prob)
+#         opt.step()
+#         mspn.network.zero_grad()
+#         mspn.parameters.proj()
+# end = timer()
+#
+# print("Done " + str(end - start) + "s")
+#
+# pdb.set_trace()
 
 '''
 Exp1
