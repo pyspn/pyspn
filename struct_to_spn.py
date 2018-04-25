@@ -24,7 +24,7 @@ class MatrixSPN(network.Network):
         '''
         Initialize the lists of nodes and edges
         '''
-        super(MatrixSPN, self).__init__()
+        super(MatrixSPN, self).__init__(is_cuda=is_cuda)
 
         self.structure = structure
         self.is_cuda = is_cuda

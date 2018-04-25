@@ -48,8 +48,8 @@ for epoch in range(epochs):
         mspn.zero_grad()
         shared_parameters.proj()
 
-    pickle.dump(mspn, open(filename, 'wb'))
-    pdb.set_trace()
+    # pickle.dump(mspn, open(filename, 'wb'))
+    # pdb.set_trace()
 
 end = timer()
 
