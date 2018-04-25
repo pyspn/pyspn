@@ -3,6 +3,7 @@ import torch
 from torch import optim, cuda
 import pdb
 import math
+import pickle
 from collections import defaultdict, deque
 from struct_to_spn import *
 from timeit import default_timer as timer
@@ -29,6 +30,8 @@ epochs = 10
 total_iter = 10
 
 print("SPN generated")
+
+filename = 'small.spn'
 start = timer()
 for epoch in range(epochs):
     print("Epoch "+str(epoch))
@@ -44,11 +47,13 @@ for epoch in range(epochs):
         opt.step()
         mspn.zero_grad()
         shared_parameters.proj()
+
+    pickle.dump(mspn, open(filename, 'wb'))
+    pdb.set_trace()
+
 end = timer()
 
 print("Done " + str(end - start) + "s")
-
-pdb.set_trace()
 
 '''
 Exp1
