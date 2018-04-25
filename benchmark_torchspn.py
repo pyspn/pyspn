@@ -14,13 +14,16 @@ shared_parameters = param.Param()
 
 x_size = 32
 y_size = 32
-mspn = MatrixSPN(
-    x_size, y_size, 8, 2, shared_parameters, is_cuda=cuda.is_available())
+cspn = ConvSPN(x_size, y_size, 8, 2)
+mspn = MatrixSPN(cspn, shared_parameters, is_cuda=cuda.is_available())
+
+shared_parameters.register(mspn)
+shared_parameters.proj()
 
 params = mspn.parameters()
 
 opt = optim.SGD( params, lr=.003)
-mspn.network.zero_grad()
+mspn.zero_grad()
 
 epochs = 10
 total_iter = 10
@@ -31,11 +34,15 @@ for epoch in range(epochs):
     print("Epoch "+str(epoch))
     for i in range(total_iter):
         fake_input = np.zeros(x_size * y_size)
-        mspn.feed(fake_input)
-        prob = mspn.forward()
-        print(prob)
+        (val_dict, cond_mask_dict) = mspn.get_mapped_input_dict(np.array([fake_input]))
+        loss = mspn.ComputeProbability(
+            val_dict=val_dict,
+            cond_mask_dict=cond_mask_dict,
+            grad=True,
+            log=True)
+        print(loss)
         opt.step()
-        mspn.network.zero_grad()
+        mspn.zero_grad()
         shared_parameters.proj()
 end = timer()
 
