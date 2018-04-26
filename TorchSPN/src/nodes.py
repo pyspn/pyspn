@@ -174,6 +174,11 @@ class SparseProductNodes(Nodes):
             for i in range(self.num):
                 if e.connections[i]:
                     indices = e.connections[i]
+                    selected_child = child_val[indices]
+
+                    # if len(selected_child[selected_child == float('inf')]):
+                        # pdb.set_trace()
+
                     val[0, i] = torch.sum(child_val[indices])
 
         self.val = val

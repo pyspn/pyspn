@@ -54,10 +54,10 @@ class MatrixSPN(network.Network):
         return (val_dict, cond_mask_dict)
 
     def initialize_weights_from_mask(self, mask):
-        # weights = np.random.normal(1, 0.2, mask.shape).astype('float32')
-        # return weights.clip(min=0.5,max=1.5)
-        weights = np.ones(mask.shape).astype('float32')
-        return weights
+        weights = np.random.normal(1, 0.2, mask.shape).astype('float32')
+        return weights.clip(min=0.5,max=1.5)
+        # weights = np.ones(mask.shape).astype('float32')
+        # return weights
 
     def generate_multinomial_leaves(self, metadata):
         num_leaves = metadata.num_nodes_by_level[-1]
@@ -88,8 +88,8 @@ class MatrixSPN(network.Network):
         for i in range(num_leaves):
             # mean = 0
             # std = 1
-            mean = np.random.normal(0, 1)
-            std = np.random.normal(1, 0.2)
+            mean = 0.5 #np.random.normal(0.5, 0.5)
+            std = 0.5 #np.random.normal(0.5, 0.2)
             if std < .6:
                 std = .6
 
@@ -153,6 +153,13 @@ class MatrixSPN(network.Network):
                     mask,
                     parameters=self.shared_parameters)
             else:
+                # connections = metadata.connections_by_level[level]
+                # cur_layer = self.AddSparseProductNodes(num_nodes)
+                # self.AddSparseProductEdges(
+                #     prev_layer,
+                #     cur_layer,
+                #     connections)
+
                 cur_layer = self.AddProductNodes(num_nodes)
                 self.AddProductEdges(
                     prev_layer,
