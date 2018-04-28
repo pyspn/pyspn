@@ -18,14 +18,14 @@ from TorchSPN.src import network, param, nodes
 from train_mnist import *
 
 def main():
-    model_name = 'flatspn_6_2'
+    model_name = 'spn_tst'
     model = pickle.load(open(model_name, 'rb'))
     leaves = model.network.concat_leaves.child_list
 
     img = np.zeros((28, 28))
     for (i, leaf) in enumerate(leaves):
-        x_idx = i % 28
-        y_idx = i / 28
+        y_idx = i % 28
+        x_idx = i / 28
 
         img[x_idx][y_idx] = leaf.mean
 

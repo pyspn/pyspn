@@ -28,9 +28,9 @@ class TrainedConvSPN(object):
 
     def generate_network(self):
         self.shared_parameters = param.Param()
-        # structure = ConvSPN(28, 28, 8, 2)
-        # structure.print_stat()
-        structure = FlatSPN(28, 28)
+        structure = ConvSPN(28, 28, 1, 2)
+        structure.print_stat()
+        # structure = FlatSPN(28, 28)
         self.network = MatrixSPN(
             structure,
             self.shared_parameters,
@@ -53,12 +53,12 @@ class TrainedConvSPN(object):
         pickle.dump(self, open(filename, 'wb'))
 
     def train(self, num_sample, segmented_data):
-        opt = optim.SGD( self.network.parameters() , lr=.3)
+        opt = optim.SGD( self.network.parameters() , lr=.03)
         self.network.zero_grad()
 
         data = segmented_data[self.digit]
 
-        batch = 10
+        batch = 1
         total_loss = 0
         for i in range(num_sample):
             sample_index = self.examples_trained
@@ -73,8 +73,11 @@ class TrainedConvSPN(object):
                 log=True)
             total_loss += loss
 
+            if loss[0][0] > 8000:
+                return
+
             if i % batch == 0 or i == num_sample - 1:
-                print("Total loss: " + str(loss))
+                print("Total loss: " + str(loss / batch))
                 total_loss = 0
                 opt.step()
                 self.network.zero_grad()
@@ -94,23 +97,31 @@ def segment_data(mnist_data):
 def main():
     print("Loading data set..")
     mnist_data = genfromtxt('mnist/dataset/mnist_train.csv', delimiter=',')
+    # mnist_data = genfromtxt('test.csv', delimiter=',')
 
     print("Segmenting...")
     segmented_data = segment_data(mnist_data)
     print("Dataset loaded!")
 
+    # split_img = np.zeros(784)
+    # split_img[392:] = 1
+    # split_img = segmented_data[5][0]
+    #
+    # segmented_data = [
+    #     [split_img] * 2000
+    # ]
+
     train_mode = True
 
     if train_mode:
-        digit_to_train = 6
+        digit_to_train = 0
         print("Creating SPN")
         tspn = TrainedConvSPN(digit_to_train)
         print("Training SPN")
-        tspn.train(500, segmented_data)
+        tspn.train(1000, segmented_data)
 
-        filename = 'flatspn_6_2'
+        filename = 'spn_tst'
         tspn.save_model(filename)
-
 
 
 if __name__ == '__main__':
