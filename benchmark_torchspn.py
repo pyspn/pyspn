@@ -15,8 +15,8 @@ shared_parameters = param.Param()
 
 x_size = 32
 y_size = 32
-# cspn = ConvSPN(x_size, y_size, 8, 2)
-cspn = FlatSPN(x_size, y_size)
+cspn = ConvSPN(x_size, y_size, 8, 2)
+# cspn = FlatSPN(x_size, y_size)
 mspn = MatrixSPN(cspn, shared_parameters, is_cuda=cuda.is_available())
 
 shared_parameters.register(mspn)

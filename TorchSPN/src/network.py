@@ -5,6 +5,7 @@ from torch.autograd import Variable as Variable
 
 import os.path
 import sys
+import pdb
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -323,7 +324,7 @@ class Network(torch.nn.Module):
 
         return self()
 
-    def ComputeProbability(self, val_dict=None, cond_mask_dict={}, grad=False, log=False, is_negative=False):
+    def ComputeProbability(self, val_dict=None, cond_mask_dict={}, grad=False, log=False):
         '''
         Compute unnormalized measure
         :param val_dict: A dictionary containing <variable, value> pairs
@@ -341,6 +342,7 @@ class Network(torch.nn.Module):
         if gl.debug:
             print('-------- p_tilde ----------')
         log_p_tilde = self.ComputeLogUnnormalized(val_dict)
+
         marginalize_dict = {}
         for k in cond_mask_dict:
             marginalize_dict[k] = 1 - cond_mask_dict[k]
@@ -360,12 +362,8 @@ class Network(torch.nn.Module):
         #print('np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() )', np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() ))
 
         if grad:
-            if is_negative:
-                n_J = -1 * J
-                n_J.backward()
-            else:
-                J *= 10
-                J.backward()
+            J.backward()
+
         prob = log_p_tilde.data.cpu().numpy() - log_Z.data.cpu().numpy()
         if not log:
             prob = np.exp(prob)

@@ -28,7 +28,7 @@ class TrainedConvSPN(object):
 
     def generate_network(self):
         self.shared_parameters = param.Param()
-        structure = ConvSPN(28, 28, 8, 2)
+        structure = ConvSPN(28, 28, 1, 28)
         structure.print_stat()
         self.network = MatrixSPN(
             structure,

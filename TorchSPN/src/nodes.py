@@ -150,6 +150,7 @@ class SumNodes(Nodes):
 
         # log space only:
 
+        self.val += torch.exp(torch.FloatTensor([-75]))[0]
         self.val = torch.log(self.val) # log( wx / max)
         self.val += maxval
         return self.val

@@ -8,7 +8,8 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-img = genfromtxt('flatspn_6_2_activation.csv', delimiter=',')
+img = genfromtxt('spn_tst_activation.csv', delimiter=',')
+img = img.clip(min=0, max=1)
 
 plt.imshow(img)
 plt.show()
