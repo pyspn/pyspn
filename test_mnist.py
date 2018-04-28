@@ -38,7 +38,7 @@ error = 0
 for test_i in range(num_tests):
     for digit in range(10):
         num_tests += 1
-        data = segment_data[digit][test_i]
+        data = segmented_data[digit][test_i]
         y_pred = model.classify_data(data)
         if (model.digit == digit) != y_pred:
             error += 1
