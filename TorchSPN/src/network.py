@@ -324,7 +324,7 @@ class Network(torch.nn.Module):
 
         return self()
 
-    def ComputeProbability(self, val_dict=None, cond_mask_dict={}, grad=False, log=False):
+    def ComputeProbability(self, val_dict=None, cond_mask_dict={}, grad=False, log=False, is_negative=False):
         '''
         Compute unnormalized measure
         :param val_dict: A dictionary containing <variable, value> pairs
@@ -362,7 +362,11 @@ class Network(torch.nn.Module):
         #print('np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() )', np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() ))
 
         if grad:
-            J.backward()
+            if is_negative:
+                J = torch.log(1 - torch.exp(-J))
+                J.backward()
+            else:
+                J.backward()
 
         prob = log_p_tilde.data.cpu().numpy() - log_Z.data.cpu().numpy()
         if not log:

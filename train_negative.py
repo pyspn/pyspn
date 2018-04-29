@@ -15,6 +15,13 @@ from timeit import default_timer as timer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
+print("Loading data set..")
+test_raw = genfromtxt('mnist/dataset/mnist_train.csv', delimiter=',')
+
+print("Segmenting...")
+segmented_data = segment_data()
+print("Dataset loaded!")
+
 class TrainedConvSPN(object):
     def __init__(self, digit):
         self.digit = digit
@@ -28,7 +35,7 @@ class TrainedConvSPN(object):
 
     def generate_network(self):
         self.shared_parameters = param.Param()
-        structure = ConvSPN(28, 28, 1, 28)
+        structure = ConvSPN(28, 28, 1, 2)
         structure.print_stat()
         self.network = MatrixSPN(
             structure,
@@ -52,7 +59,7 @@ class TrainedConvSPN(object):
         pickle.dump(self, open(filename, 'wb'))
 
     def train(self, num_sample):
-        opt = optim.SGD( self.network.parameters() , lr=.3)
+        opt = optim.SGD( self.network.parameters() , lr=.0003)
         self.network.zero_grad()
 
         data = segmented_data[self.digit]
@@ -62,7 +69,7 @@ class TrainedConvSPN(object):
         for i in range(num_sample):
             sample_index = self.examples_trained
 
-            sample_digit = i % 10
+            sample_digit = self.digit if i % 2 else self.digit + 1
             is_negative = sample_digit != self.digit
             input = segmented_data[sample_digit][sample_index / 10]
 
@@ -89,23 +96,26 @@ class TrainedConvSPN(object):
 def load_model(filename):
     pass
 
-# if __name__ == '__main__':
+def segment_data():
+    segmented_data = []
+    for i in range(10):
+        i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
+        segmented_data.append(i_examples)
 
+    return segmented_data
 
-# print("Loading data set..")
-# test_raw = genfromtxt('mnist/dataset/mnist_train.csv', delimiter=',')
-#
-# def segment_data():
-#     segmented_data = []
-#     for i in range(10):
-#         i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
-#         segmented_data.append(i_examples)
-#
-#     return segmented_data
-#
-# print("Segmenting...")
-# segmented_data = segment_data()
-# print("Dataset loaded!")
+def main():
+    digit_to_train = 8
+    print("Creating SPN")
+    tspn = TrainedConvSPN(digit_to_train)
+    print("Training SPN")
+    tspn.train(1000)
+    tspn.save_model('neg_spn_8')
+
+    pdb.set_trace()
+
+if __name__ == '__main__':
+    main()
 
 # train_mode = True
 
