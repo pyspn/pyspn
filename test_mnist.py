@@ -40,22 +40,22 @@ def compute_prob(model, x):
             log=True)
     return loss
 
-model_a = pickle.load(open('spn_7', 'rb'))
-digit_a = 7
-
-model_b = pickle.load(open('spn_tst', 'rb'))
-digit_b = 8
-
-num_tests = 100
-error = 0
-for i in range(num_tests):
-    a = segmented_data[digit_a][i]
-    if compute_prob(model_a, a) < compute_prob(model_b, a):
-        error += 1
-
-    b = segmented_data[digit_b][i]
-    if compute_prob(model_a, b) > compute_prob(model_b, b):
-        error += 1
+# model_a = pickle.load(open('spn_7', 'rb'))
+# digit_a = 7
+#
+# model_b = pickle.load(open('spn_tst', 'rb'))
+# digit_b = 8
+#
+# num_tests = 100
+# error = 0
+# for i in range(num_tests):
+#     a = segmented_data[digit_a][i]
+#     if compute_prob(model_a, a) < compute_prob(model_b, a):
+#         error += 1
+#
+#     b = segmented_data[digit_b][i]
+#     if compute_prob(model_a, b) > compute_prob(model_b, b):
+#         error += 1
 
 pdb.set_trace()
 

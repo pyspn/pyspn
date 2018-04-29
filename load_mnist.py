@@ -18,7 +18,7 @@ from TorchSPN.src import network, param, nodes
 from train_mnist import *
 
 def main():
-    model_name = 'spn_tst'
+    model_name = 'spn_7'
     model = pickle.load(open(model_name, 'rb'))
     leaves = model.network.concat_leaves.child_list
 
