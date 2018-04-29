@@ -31,16 +31,44 @@ print("Segmenting...")
 segmented_data = segment_data()
 print("Dataset loaded!")
 
-model = pickle.load(open('spn_0', 'rb'))
+def compute_prob(model, x):
+    (val_dict, cond_mask_dict) = model.network.get_mapped_input_dict(np.array([x]))
+    loss = model.network.ComputeProbability(
+            val_dict=val_dict,
+            cond_mask_dict=cond_mask_dict,
+            grad=False,
+            log=True)
+    return loss
+
+model_a = pickle.load(open('spn_7', 'rb'))
+digit_a = 7
+
+model_b = pickle.load(open('spn_8', 'rb'))
+digit_b = 8
 
 num_tests = 100
 error = 0
-for test_i in range(num_tests):
-    for digit in range(10):
-        num_tests += 1
-        data = segmented_data[digit][test_i]
-        y_pred = model.classify_data(data)
-        if (model.digit == digit) != y_pred:
-            error += 1
+
+for i in range(num_tests):
+    a = segmented_data[digit_a][i]
+    if compute_prob(model_a, a) < compute_prob(model_b, a):
+        error += 1
+
+    b = segmented_data[digit_b][i]
+    if compute_prob(model_a, b) > compute_prob(model_b, b):
+        error += 1
+
 
 pdb.set_trace()
+
+#num_tests = 100
+#error = 0
+#for test_i in range(num_tests):
+#    for digit in range(10):
+#        num_tests += 1
+#        data = segment_data[digit][test_i]
+#        y_pred = model.classify_data(data)
+#        if (model.digit == digit) != y_pred:
+#            error += 1
+
+#pdb.set_trace()
