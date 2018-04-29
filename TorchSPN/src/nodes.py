@@ -300,12 +300,8 @@ class GaussianNodes(Nodes):
         pass
 
     def std_proj_hook(self):
-
-        #if self.std.data.numpy().__float__() < EPSILON:
-        #    print('to clamp', self.std.data.numpy())
-        #self.std.data = self.std.data.clamp(min=EPSILON)
-        #print('after clamping:', self.std.data.numpy().__float__())
-        pass
+        if self.logstd.data.numpy().__float__() < -100:
+            self.std.data = self.std.data.clamp(min=-85)
 
 
 class MultinomialNodes(Nodes):
