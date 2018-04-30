@@ -17,7 +17,7 @@ from TorchSPN.src import network, param, nodes
 from train_mnist import *
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist/dataset/mnist_test.csv', delimiter=',')
+test_raw = genfromtxt('mnist_test.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []
@@ -32,30 +32,33 @@ segmented_data = segment_data()
 print("Dataset loaded!")
 
 def compute_prob(model, x):
-    (val_dict, cond_mask_dict) = model.network.get_mapped_input_dict(np.array([x]))
-    loss = model.network.ComputeProbability(
+    (val_dict, cond_mask_dict) = model.get_mapped_input_dict(np.array([x]))
+    loss = model.ComputeProbability(
             val_dict=val_dict,
             cond_mask_dict=cond_mask_dict,
             grad=False,
             log=True)
     return loss
 
-# model_a = pickle.load(open('spn_7', 'rb'))
-# digit_a = 7
-#
-# model_b = pickle.load(open('spn_tst', 'rb'))
-# digit_b = 8
-#
-# num_tests = 100
-# error = 0
-# for i in range(num_tests):
-#     a = segmented_data[digit_a][i]
-#     if compute_prob(model_a, a) < compute_prob(model_b, a):
-#         error += 1
-#
-#     b = segmented_data[digit_b][i]
-#     if compute_prob(model_a, b) > compute_prob(model_b, b):
-#         error += 1
+model = pickle.load(open('tmm_[7, 8]', 'rb'))
+
+
+
+model_a = model.networks[7]
+digit_a = 7
+
+model_b = model.networks[8]
+digit_b = 8
+
+num_tests = 100
+error = 0
+for i in range(num_tests):
+    a = segmented_data[digit_a][i]
+    if compute_prob(model_a, a) < compute_prob(model_b, a):
+        error += 1
+    b = segmented_data[digit_b][i]
+    if compute_prob(model_a, b) > compute_prob(model_b, b):
+        error += 1
 
 pdb.set_trace()
 

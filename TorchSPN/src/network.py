@@ -362,11 +362,7 @@ class Network(torch.nn.Module):
         #print('np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() )', np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() ))
 
         if grad:
-            if is_negative:
-                J = torch.log(1 - torch.exp(-J))
-                J.backward()
-            else:
-                J.backward()
+            J.backward()
 
         prob = log_p_tilde.data.cpu().numpy() - log_Z.data.cpu().numpy()
         if not log:

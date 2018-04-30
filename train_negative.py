@@ -15,8 +15,16 @@ from timeit import default_timer as timer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
+def segment_data():
+    segmented_data = []
+    for i in range(10):
+        i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
+        segmented_data.append(i_examples)
+
+    return segmented_data
+
 print("Loading data set..")
-test_raw = genfromtxt('mnist/dataset/mnist_train.csv', delimiter=',')
+test_raw = genfromtxt('mnist_train.csv', delimiter=',')
 
 print("Segmenting...")
 segmented_data = segment_data()
@@ -64,14 +72,15 @@ class TrainedConvSPN(object):
 
         data = segmented_data[self.digit]
 
-        batch = 1
+        batch = 10
         total_loss = 0
+        print("Training " + str(self.digit))
         for i in range(num_sample):
             sample_index = self.examples_trained
 
             sample_digit = self.digit if i % 2 else self.digit + 1
             is_negative = sample_digit != self.digit
-            input = segmented_data[sample_digit][sample_index / 10]
+            input = segmented_data[int(sample_digit)][int(i / 2)]
 
             self.examples_trained += 1
 
@@ -85,8 +94,9 @@ class TrainedConvSPN(object):
             total_loss += loss
 
             if i % batch == 0 or i == num_sample - 1:
+                print("Last loss: " + str(loss))
                 print("Total loss: " + str(total_loss))
-                if np.isnan(total_loss[0][0]):
+                if np.isnan(total_loss[0]):
                     return
                 total_loss = 0
                 opt.step()
@@ -95,14 +105,6 @@ class TrainedConvSPN(object):
 
 def load_model(filename):
     pass
-
-def segment_data():
-    segmented_data = []
-    for i in range(10):
-        i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
-        segmented_data.append(i_examples)
-
-    return segmented_data
 
 def main():
     digit_to_train = 8

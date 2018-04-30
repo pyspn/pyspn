@@ -121,15 +121,15 @@ class MatrixSPN(network.Network):
             log=False)
 
     def ComputeTMMLoss(self, val_dict=None, cond_mask_dict={}):
-        if gl.debug:
-            print('-------- p_tilde ----------')
+        #if gl.debug:
+        #    print('-------- p_tilde ----------')
         log_p_tilde = self.ComputeLogUnnormalized(val_dict)
 
         marginalize_dict = {}
         for k in cond_mask_dict:
             marginalize_dict[k] = 1 - cond_mask_dict[k]
-        if gl.debug:
-            print('-------- Z ----------')
+        #if gl.debug:
+        #    print('-------- Z ----------')
 
         log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
 

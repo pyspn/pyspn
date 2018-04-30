@@ -16,7 +16,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist/dataset/mnist_train.csv', delimiter=',')
+test_raw = genfromtxt('mnist_train.csv', delimiter=',')
+
+def segment_data():
+    segmented_data = []
+    for i in range(10):
+        i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
+        segmented_data.append(i_examples)
+
+    return segmented_data
 
 print("Segmenting...")
 segmented_data = segment_data()
@@ -55,7 +63,7 @@ class TrainedConvSPN(torch.nn.Module):
     def loss_for_digit(self, digit, input):
         network = self.networks[digit]
         (val_dict, cond_mask_dict) = network.get_mapped_input_dict(np.array([input]))
-        loss = network.ComputeTMMLoss(self, val_dict=val_dict, cond_mask_dict=cond_mask_dict)
+        loss = network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
         return loss
 
@@ -63,10 +71,11 @@ class TrainedConvSPN(torch.nn.Module):
         correct_nll= per_network_loss[sample_digit]
 
         loss = 0
-        for digit in self.digit:
+        margin = 10
+        for digit in self.digits:
             if digit != sample_digit:
                 other_nll = per_network_loss[digit]
-                class_loss = (other_nll - correct_nll).clamp(min=0)
+                class_loss = (other_nll - correct_nll)
                 loss += class_loss
 
         return loss
@@ -75,8 +84,10 @@ class TrainedConvSPN(torch.nn.Module):
         opt = optim.SGD( self.parameters() , lr=.0003)
         self.zero_grad()
 
-        batch = 1
+        batch = 10
         total_loss = 0
+
+        #pdb.set_trace()
 
         for i in range(num_sample):
             self.examples_trained += 1
@@ -85,15 +96,20 @@ class TrainedConvSPN(torch.nn.Module):
 
                 per_network_loss = {}
                 for digit in self.digits:
-                    per_network_loss[digit] = self.loss_for_digit(sample_digit, input)
+                    per_network_loss[digit] = self.loss_for_digit(digit, input)
 
-                print("Sampling " + str(sample_digit) + " with loss " + str(per_network_loss))
+                #print("Sampling " + str(sample_digit) + " with loss " + str(per_network_loss))
                 loss = self.compute_total_loss(sample_digit, per_network_loss)
+
+                #pdb.set_trace()
                 loss.backward()
+                total_loss += loss
 
             if i % batch == 0 or i == num_sample - 1:
-                print("Total loss: " + str(total_loss))
-                if np.isnan(total_loss[0][0]):
+                print("Total loss: " + str(total_loss[0][0].data))
+
+                #pdb.set_trace()
+                if np.isnan(total_loss[0][0].data.cpu().numpy()):
                     return
                 total_loss = 0
                 opt.step()
@@ -103,18 +119,10 @@ class TrainedConvSPN(torch.nn.Module):
 def load_model(filename):
     pass
 
-def segment_data():
-    segmented_data = []
-    for i in range(10):
-        i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
-        segmented_data.append(i_examples)
-
-    return segmented_data
-
 def main():
     digits_to_train = [7, 8]
     print("Creating SPN")
-    tspn = TrainedConvSPN(digit_to_train)
+    tspn = TrainedConvSPN(digits_to_train)
     print("Training SPN")
     tspn.train(1000)
     tspn.save_model('tmm_' + str(digits_to_train))

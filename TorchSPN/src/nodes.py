@@ -300,7 +300,7 @@ class GaussianNodes(Nodes):
         pass
 
     def std_proj_hook(self):
-        if self.logstd.data.numpy().__float__() < -100:
+        if self.logstd.data.cpu().numpy().__float__() < -100:
             self.std.data = self.std.data.clamp(min=-85)
 
 
