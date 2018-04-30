@@ -120,6 +120,23 @@ class MatrixSPN(network.Network):
             grad=False,
             log=False)
 
+    def ComputeTMMLoss(self, val_dict=None, cond_mask_dict={}):
+        if gl.debug:
+            print('-------- p_tilde ----------')
+        log_p_tilde = self.ComputeLogUnnormalized(val_dict)
+
+        marginalize_dict = {}
+        for k in cond_mask_dict:
+            marginalize_dict[k] = 1 - cond_mask_dict[k]
+        if gl.debug:
+            print('-------- Z ----------')
+
+        log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
+
+        J = torch.sum(- log_p_tilde + log_Z) #  negative log-likelihood
+
+        return J
+
     def generate_network(self):
         if debug:
             self.structure.print_stat()
