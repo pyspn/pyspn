@@ -26,6 +26,7 @@ class Leaf(object):
         self.y = y
         self.depth = 0
         self.id = str([x, y])
+        self.node_type = "Leaf"
 
 
 class Node(object):
@@ -128,14 +129,62 @@ class FlatSPN(object):
                 child_leaf = Leaf(x, y)
                 self.root.children.append(child_leaf)
 
-class ConvSPN(object):
+class GraphSPN(object):
+    def __init__(self):
+        self.root = None
+
+    def print_stat(self):
+        self.traverse_by_level()
+
+    def traverse_by_level(self):
+        q = deque([self.root])
+
+        level = 0
+        total_nodes = 0
+        total_edges = 0
+        visited = {}
+
+        while q:
+            level_size = len(q)
+            node_count = 0
+            edge_count = 0
+
+            level_type = None
+            while level_size:
+                u = q.popleft()
+                level_size -= 1
+
+                level_type = u.node_type
+                if isinstance(u, Leaf):
+                    continue
+
+                node_count += 1
+                edge_count += len(u.children)
+
+                for v in u.children:
+                    if v in visited:
+                        continue
+
+                    q.append(v)
+                    visited[v] = True
+
+            total_nodes += node_count
+            total_edges += edge_count
+            print("Level " + str(level) + " (" + level_type + ") : " + str(node_count) +
+                  " nodes, " + str(edge_count) + " edges")
+            level += 1
+
+        print(str(total_nodes) + " nodes")
+        print(str(total_edges) + " edges")
+
+class ConvSPN(GraphSPN):
     def __init__(self, x_size, y_size, sum_shifts, prd_subdivs):
+        super(ConvSPN, self).__init__()
+
         self.x_size = x_size
         self.y_size = y_size
         self.sum_shifts = sum_shifts
         self.prd_subdivs = prd_subdivs
-
-        self.root = None
 
         self.cached_sum = {}
         self.cached_prd = {}
@@ -337,55 +386,6 @@ class ConvSPN(object):
 
         return subdivs
 
-    def print_stat(self):
-        # print("Reused sum: " + str(self.reused_sum) + "/" + str(self.total_sum))
-        # print("Reused prd: " + str(self.reused_prd) + "/" + str(self.total_prd))
-        #
-        # for i in range(self.depth):
-        #     c = self.count_by_depth[i]
-        #     print("Depth " + str(i) + ": " + str(c) + " nodes")
-
-        self.traverse_by_level()
-
-    def traverse_by_level(self):
-        q = deque([self.root])
-
-        level = 0
-        total_nodes = 0
-        total_edges = 0
-        visited = {}
-
-        while q:
-            level_size = len(q)
-            node_count = 0
-            edge_count = 0
-
-            while level_size:
-                u = q.popleft()
-                level_size -= 1
-
-                if isinstance(u, Leaf):
-                    continue
-
-                node_count += 1
-                edge_count += len(u.children)
-
-                for v in u.children:
-                    if v in visited:
-                        continue
-
-                    q.append(v)
-                    visited[v] = True
-
-            total_nodes += node_count
-            total_edges += edge_count
-            print("Level " + str(level) + ": " + str(node_count) +
-                  " nodes, " + str(edge_count) + " edges")
-            level += 1
-
-        print(str(total_nodes) + " nodes")
-        print(str(total_edges) + " edges")
-
     def naive_traverse_by_level(self):
         '''
         Traverse the SPN as if subtree sharing isn't implemented. This would take too long on large SPNs.
@@ -409,6 +409,107 @@ class ConvSPN(object):
 
             print("Level " + str(level) + ": " + str(len(all)))
             level += 1
+
+
+class MultiChannelConvSPN(GraphSPN):
+    def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, num_channels):
+        super(MultiChannelConvSPN, self).__init__()
+
+        self.x_size = x_size
+        self.y_size = y_size
+        self.sum_shifts = sum_shifts
+        self.prd_subdivs = prd_subdivs
+        self.num_channels = num_channels
+
+        self.cached_prd = defaultdict(list)
+        self.cached_leaf = defaultdict(list)
+
+        # statistics
+        self.depth = 0
+        self.total_sum = 0
+        self.total_prd = 0
+        self.reused_sum = 0
+        self.reused_prd = 0
+        self.count_by_depth = defaultdict(int)
+
+        self.generate_spn()
+
+    def generate_spn(self):
+        '''
+        1. Generate root
+        2. Generate #num_channels ConvSPN
+        3. Connect separate ConvSPN's sum node
+        '''
+        root_scope = Scope(0, 0, self.x_size, self.y_size)
+        self.root = Sum(root_scope)
+
+        channels = []
+        for i in range(self.num_channels):
+            channel = ConvSPN(self.x_size, self.y_size, self.sum_shifts, self.prd_subdivs)
+            self.populate_cache_from_spn(channel)
+            channels.append(channel)
+
+        # Now, cache contains prd and leaves from all channels.
+        # So now we add inter-channel connections.
+        for channel in channels:
+            self.add_interchannel_connection(channel)
+
+        # Set channels as root's child and update channel's depth.
+        for channel in channels:
+            self.root.children.extend(channel.root.children)
+
+    def populate_cache_from_spn(self, spn):
+        q = deque([spn.root])
+        visited = {}
+        while q:
+            level_size = len(q)
+
+            while level_size:
+                u = q.popleft()
+                level_size -= 1
+
+                if isinstance(u, Product):
+                    self.cached_prd[u.scope.id].append(u)
+
+                if isinstance(u, Leaf):
+                    self.cached_leaf[u.id].append(u)
+                    continue
+
+                for v in u.children:
+                    if v in visited:
+                        continue
+
+                    q.append(v)
+                    visited[v] = True
+
+    def add_interchannel_connection(self, spn):
+        q = deque([spn.root])
+        visited = {}
+        while q:
+            level_size = len(q)
+
+            while level_size:
+                u = q.popleft()
+                level_size -= 1
+
+                if isinstance(u, Leaf):
+                    continue
+
+                for v in u.children:
+                    if v in visited:
+                        continue
+
+                    q.append(v)
+                    visited[v] = True
+
+                if isinstance(u, Sum):
+                    interchannel_children = []
+
+                    for v in u.children:
+                        inter_child_in_v = self.cached_prd[v.scope.id]
+                        interchannel_children.extend(inter_child_in_v)
+
+                    u.children = interchannel_children
 
 
 def overlap(scope1, scope2):
