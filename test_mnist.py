@@ -14,7 +14,7 @@ from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
-from train_mnist import *
+from tmm import *
 
 print("Loading data set..")
 test_raw = genfromtxt('mnist_test.csv', delimiter=',')
@@ -22,7 +22,7 @@ test_raw = genfromtxt('mnist_test.csv', delimiter=',')
 def segment_data():
     segmented_data = []
     for i in range(10):
-        i_examples = test_raw[test_raw[:,0] == i][:,1:] / 255
+        i_examples = test_raw[test_raw[:,0] == i][:,1:] / 255 - 0.5
         segmented_data.append(i_examples)
 
     return segmented_data
@@ -40,25 +40,29 @@ def compute_prob(model, x):
             log=True)
     return loss
 
+def predict(model, x):
+    losses = []
+    for digit in models.digits:
+        network = models.networks[digit]
+        loss = compute_prob(network, x)
+        losses.append(loss)
+
+    losses = np.array(losses)
+    prediction_index = np.argmax(losses)
+    predicted_digit = models.digit[prediction_index]
+
+    return predicted_digit
+
 model = pickle.load(open('tmm_[7, 8]', 'rb'))
-
-
-
-model_a = model.networks[7]
-digit_a = 7
-
-model_b = model.networks[8]
-digit_b = 8
 
 num_tests = 100
 error = 0
 for i in range(num_tests):
-    a = segmented_data[digit_a][i]
-    if compute_prob(model_a, a) < compute_prob(model_b, a):
-        error += 1
-    b = segmented_data[digit_b][i]
-    if compute_prob(model_a, b) > compute_prob(model_b, b):
-        error += 1
+    for digit in models.digit:
+        x = segmented_data[digit][i]
+        prediction = predict(model, x)
+        if prediction != digit:
+            error += 1
 
 pdb.set_trace()
 
