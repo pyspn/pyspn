@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist_train.csv', delimiter=',')
+test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []
@@ -46,7 +46,7 @@ class TrainedConvSPN(torch.nn.Module):
         self.shared_parameters = param.Param()
 
         for digit in self.digits:
-            structure = ConvSPN(28, 28, 1, 2)
+            structure = ConvSPN(16, 16, 1, 2)
             structure.print_stat()
             network = MatrixSPN(
                 structure,
@@ -71,17 +71,17 @@ class TrainedConvSPN(torch.nn.Module):
         correct_nll= per_network_loss[sample_digit]
 
         loss = 0
-        margin = 10
+        margin = 1
         for digit in self.digits:
             if digit != sample_digit:
                 other_nll = per_network_loss[digit]
-                class_loss = (other_nll - correct_nll)
+                class_loss = (margin + correct_nll - other_nll).clamp(min = 0)
                 loss += class_loss
 
         return loss
 
     def train(self, num_sample):
-        opt = optim.SGD( self.parameters() , lr=.0003)
+        opt = optim.SGD( self.parameters() , lr=.003)
         self.zero_grad()
 
         batch = 10
@@ -120,12 +120,12 @@ def load_model(filename):
     pass
 
 def main():
-    digits_to_train = [7, 8]
+    digits_to_train = [6, 7, 8]
     print("Creating SPN")
     tspn = TrainedConvSPN(digits_to_train)
     print("Training SPN")
-    tspn.train(1000)
-    tspn.save_model('tmm_' + str(digits_to_train))
+    tspn.train(2000)
+    tspn.save_model('tmm_16_' + str(digits_to_train))
     pdb.set_trace()
 
 if __name__ == '__main__':
@@ -164,4 +164,4 @@ if __name__ == '__main__':
 #     if is_data_5(data_6):
 #         error += 1
 
-pdb.set_trace()
+#pdb.set_trace()

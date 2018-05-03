@@ -17,7 +17,7 @@ from TorchSPN.src import network, param, nodes
 from tmm import *
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist_test.csv', delimiter=',')
+test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []
@@ -42,23 +42,22 @@ def compute_prob(model, x):
 
 def predict(model, x):
     losses = []
-    for digit in models.digits:
-        network = models.networks[digit]
+    for digit in model.digits:
+        network = model.networks[digit]
         loss = compute_prob(network, x)
         losses.append(loss)
 
     losses = np.array(losses)
     prediction_index = np.argmax(losses)
-    predicted_digit = models.digit[prediction_index]
-
+    predicted_digit = model.digits[prediction_index]
     return predicted_digit
 
-model = pickle.load(open('tmm_[7, 8]', 'rb'))
+model = pickle.load(open('tmm_678_1', 'rb'))
 
 num_tests = 100
 error = 0
 for i in range(num_tests):
-    for digit in models.digit:
+    for digit in model.digits:
         x = segmented_data[digit][i]
         prediction = predict(model, x)
         if prediction != digit:
