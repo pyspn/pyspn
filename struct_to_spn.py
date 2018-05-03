@@ -36,7 +36,7 @@ class MatrixSPN(network.Network):
         self.concat_leaves = None
         self.layers = []
 
-        # self.leaves_input_indices = None
+        self.leaves_input_indices = None
 
         self.generate_network()
 
@@ -45,8 +45,7 @@ class MatrixSPN(network.Network):
         cond_mask_dict = {}
 
         for (i, leaf) in enumerate(self.leaves):
-            input_index = i
-            # input_index = self.leaves_input_indices[i]
+            input_index = self.leaves_input_indices[i]
             _val = np.array([ data[:, input_index] ])
             val_dict[leaf] = _val
             cond_mask_dict[leaf] = np.zeros(_val.shape)
@@ -56,8 +55,6 @@ class MatrixSPN(network.Network):
     def initialize_weights_from_mask(self, mask):
         weights = np.random.normal(1, 0.2, mask.shape).astype('float32')
         return weights.clip(min=0.5,max=1.5)
-        # weights = np.ones(mask.shape).astype('float32')
-        # return weights
 
     def generate_multinomial_leaves(self, metadata):
         num_leaves = metadata.num_nodes_by_level[-1]
@@ -83,18 +80,11 @@ class MatrixSPN(network.Network):
         num_leaves = metadata.num_nodes_by_level[-1]
 
         leaves = []
-        # mean_list = []
-        # std_list = []
         for i in range(num_leaves):
-            # mean = 0
-            # std = 1
-            mean = 0.5 #np.random.normal(0.5, 0.5)
-            std = 0.5 #np.random.normal(0.5, 0.2)
+            mean = np.random.normal(0, 0.5)
+            std = np.random.normal(0.5, 0.2)
             if std < .6:
                 std = .6
-
-            # mean_list.append(mean)
-            # std_list.append(std)
 
             mean = np.array([mean], dtype='float32')
             std = np.array([std], dtype='float32')
@@ -121,15 +111,11 @@ class MatrixSPN(network.Network):
             log=False)
 
     def ComputeTMMLoss(self, val_dict=None, cond_mask_dict={}):
-        #if gl.debug:
-        #    print('-------- p_tilde ----------')
         log_p_tilde = self.ComputeLogUnnormalized(val_dict)
 
         marginalize_dict = {}
         for k in cond_mask_dict:
             marginalize_dict[k] = 1 - cond_mask_dict[k]
-        #if gl.debug:
-        #    print('-------- Z ----------')
 
         log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
 
@@ -143,11 +129,10 @@ class MatrixSPN(network.Network):
 
         metadata = CVMetaData(self.structure)
 
-        # self.leaves_input_indices = metadata.leaves_input_indices
+        self.leaves_input_indices = metadata.leaves_input_indices
 
         # create leaves
         leaves = self.generate_gaussian_leaves(metadata)
-        # leaves = self.generate_multinomial_leaves(metadata)
 
         # create layers bottom-up
         prev_layer = leaves
@@ -170,13 +155,6 @@ class MatrixSPN(network.Network):
                     mask,
                     parameters=self.shared_parameters)
             else:
-                # connections = metadata.connections_by_level[level]
-                # cur_layer = self.AddSparseProductNodes(num_nodes)
-                # self.AddSparseProductEdges(
-                #     prev_layer,
-                #     cur_layer,
-                #     connections)
-
                 cur_layer = self.AddProductNodes(num_nodes)
                 self.AddProductEdges(
                     prev_layer,

@@ -13,13 +13,14 @@ class CVMetaData(object):
     def __init__(self, cv):
         self.depth = 0
         self.masks_by_level = []
-        self.connections_by_level = []
         self.type_by_level = []
 
-        # internal properties
         self.level_label_by_node = {}
         self.num_nodes_by_level = []
         self.nodes_by_level = []
+
+        # The input index of the i-th leaf.
+        self.leaves_input_indices = []
 
         self.get_cv_metadata(cv)
 
@@ -61,58 +62,21 @@ class CVMetaData(object):
                     q.append(child)
 
             self.type_by_level.append(level_type)
-
-            # Ensure that leaves are in order.
-            if level_type == None:
-                curr_level = self.order_leaves(cv, curr_level)
-
             self.nodes_by_level.append(curr_level)
             self.num_nodes_by_level.append(len(curr_level))
+
             for (label, node) in enumerate(curr_level):
                 self.level_label_by_node[node] = label
             level += 1
 
         self.depth = level
 
-        self.connections_by_level = self.get_connections_by_level(cv)
         self.masks_by_level = self.get_masks_by_level(cv)
-
-    def order_leaves(self, cv, leaves):
-        size = cv.x_size * cv.y_size
-        ordered_leaves = [None for i in range(size)]
-
-        for leaf in leaves:
-            idx = leaf.x + leaf.y * cv.y_size
-            ordered_leaves[idx] = leaf
-
-        return ordered_leaves
-
-    def get_connections_by_level(self, cv):
-        '''
-        Returns TorchSPN style sparse connection corresponding to ConvSPN cv
-        '''
-        connections_by_level = []
-        for cur_level in range(self.depth - 1):
-            next_level = cur_level + 1
-            cur_level_count = self.num_nodes_by_level[cur_level]
-            next_level_count = self.num_nodes_by_level[next_level]
-
-            level_connections = defaultdict(list)
-
-            cur_level_nodes = self.nodes_by_level[cur_level]
-            for cur_node in cur_level_nodes:
-                cur_label = self.level_label_by_node[cur_node]
-                for child_node in cur_node.children:
-                    child_label = self.level_label_by_node[child_node]
-                    level_connections[cur_label].append(child_label)
-
-            connections_by_level.append(level_connections)
-
-        return connections_by_level
+        self.leaves_input_indices = self.get_leaves_input_indices(cv)
 
     def get_masks_by_level(self, cv):
         '''
-        Returns a TorchSPN style matrix layer information corresponding to ConvSPN cv
+        Returns a TorchSPN style layer information corresponding to ConvSPN cv
         '''
         masks_by_level = []
         for cur_level in range(self.depth - 1):
@@ -133,6 +97,17 @@ class CVMetaData(object):
             masks_by_level.append(level_mask)
 
         return masks_by_level
+
+    def get_leaves_input_indices(self, cv):
+        leaves = self.nodes_by_level[-1]
+
+        leaves_input_indices = []
+        for leaf in leaves:
+            index = int(leaf.scope.y) * cv.x_size + int(leaf.scope.x)
+            print("Index " + str(index))
+            leaves_input_indices.append(index)
+
+        return leaves_input_indices
 
 def get_edge_count_from_layers(cv_layers):
     '''
