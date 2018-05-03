@@ -52,7 +52,7 @@ def predict(model, x):
     predicted_digit = model.digits[prediction_index]
     return predicted_digit
 
-model = pickle.load(open('tmm_678_1', 'rb'))
+model = pickle.load(open('tmm_disc_[7, 8]', 'rb'))
 
 num_tests = 100
 error = 0
