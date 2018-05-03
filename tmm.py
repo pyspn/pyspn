@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist_train.csv', delimiter=',')
+test_raw = genfromtxt('mnist/dataset/mnist_train.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []
@@ -75,12 +75,43 @@ class TrainedConvSPN(torch.nn.Module):
         for digit in self.digits:
             if digit != sample_digit:
                 other_nll = per_network_loss[digit]
-                class_loss = (other_nll - correct_nll)
+                class_loss = (correct_nll - other_nll)
                 loss += class_loss
 
         return loss
 
-    def train(self, num_sample):
+    def train_generatively(self, num_sample):
+        opt = optim.SGD( self.parameters() , lr=.003)
+        self.zero_grad()
+
+        batch = 10
+        total_loss = 0
+
+        i = 0
+        while i < num_sample:
+            self.examples_trained += 1
+            for sample_digit in self.digits:
+                input = segmented_data[sample_digit][i]
+
+                loss = self.loss_for_digit(sample_digit, input)
+
+                loss.backward()
+                total_loss += loss
+
+            if i % batch == 0 or i == num_sample - 1:
+                print("Total loss: " + str(i) + " " + str(total_loss[0][0].data))
+
+                #pdb.set_trace()
+                if np.isnan(total_loss[0][0].data.cpu().numpy()):
+                    return
+                total_loss = 0
+                opt.step()
+                self.zero_grad()
+                self.shared_parameters.proj()
+
+            i += 1
+
+    def train_discriminatively(self, num_sample):
         opt = optim.SGD( self.parameters() , lr=.0003)
         self.zero_grad()
 
@@ -89,7 +120,8 @@ class TrainedConvSPN(torch.nn.Module):
 
         #pdb.set_trace()
 
-        for i in range(num_sample):
+        i = 0
+        while i < num_sample:
             self.examples_trained += 1
             for sample_digit in self.digits:
                 input = segmented_data[sample_digit][i]
@@ -106,7 +138,7 @@ class TrainedConvSPN(torch.nn.Module):
                 total_loss += loss
 
             if i % batch == 0 or i == num_sample - 1:
-                print("Total loss: " + str(total_loss[0][0].data))
+                print("Total loss: " + str(i) + " " + str(total_loss[0][0].data))
 
                 #pdb.set_trace()
                 if np.isnan(total_loss[0][0].data.cpu().numpy()):
@@ -116,6 +148,8 @@ class TrainedConvSPN(torch.nn.Module):
                 self.zero_grad()
                 self.shared_parameters.proj()
 
+            i += 1
+
 def load_model(filename):
     pass
 
@@ -124,8 +158,8 @@ def main():
     print("Creating SPN")
     tspn = TrainedConvSPN(digits_to_train)
     print("Training SPN")
-    tspn.train(1000)
-    tspn.save_model('tmm_' + str(digits_to_train))
+    tspn.train_generatively(1000)
+    tspn.save_model('tmm_gen_' + str(digits_to_train))
     pdb.set_trace()
 
 if __name__ == '__main__':
