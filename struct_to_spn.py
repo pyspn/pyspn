@@ -81,8 +81,8 @@ class MatrixSPN(network.Network):
 
         leaves = []
         for i in range(num_leaves):
-            mean = np.random.normal(0, 0.5)
-            std = np.random.normal(0.5, 0.2)
+            mean = 0.5 #np.random.normal(0, 0.5)
+            std = 0.5 #np.random.normal(0.5, 0.2)
             if std < .6:
                 std = .6
 

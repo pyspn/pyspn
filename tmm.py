@@ -46,7 +46,7 @@ class TrainedConvSPN(torch.nn.Module):
         self.shared_parameters = param.Param()
 
         for digit in self.digits:
-            structure = ConvSPN(16, 16, 1, 2)
+            structure = MultiChannelConvSPN(16, 16, 1, 2, 3)
             structure.print_stat()
             network = MatrixSPN(
                 structure,
@@ -154,12 +154,12 @@ def load_model(filename):
     pass
 
 def main():
-    digits_to_train = [7, 8]
+    digits_to_train = [4, 5, 6, 7, 8]
     print("Creating SPN")
     tspn = TrainedConvSPN(digits_to_train)
     print("Training SPN")
-    tspn.train_discriminatively(500)
-    tspn.save_model('tmm_disc_' + str(digits_to_train))
+    tspn.train_discriminatively(1000)
+    tspn.save_model('mmcspn_2_' + str(digits_to_train))
 
     pdb.set_trace()
 

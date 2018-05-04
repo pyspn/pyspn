@@ -103,7 +103,7 @@ class CVMetaData(object):
 
         leaves_input_indices = []
         for leaf in leaves:
-            index = int(leaf.scope.y) * cv.x_size + int(leaf.scope.x)
+            index = int(leaf.y) * cv.x_size + int(leaf.x)
             print("Index " + str(index))
             leaves_input_indices.append(index)
 

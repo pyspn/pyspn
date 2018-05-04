@@ -17,7 +17,7 @@ from TorchSPN.src import network, param, nodes
 from tmm import *
 
 print("Loading data set..")
-test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []
@@ -52,16 +52,22 @@ def predict(model, x):
     predicted_digit = model.digits[prediction_index]
     return predicted_digit
 
-model = pickle.load(open('tmm_disc_[7, 8]', 'rb'))
+model = pickle.load(open('mm_5', 'rb'))
 
-num_tests = 100
+num_tests = 50
 error = 0
+errors = defaultdict(int)
 for i in range(num_tests):
+    print("Iteration " + str(i) + ": " + str(error))
     for digit in model.digits:
         x = segmented_data[digit][i]
         prediction = predict(model, x)
         if prediction != digit:
+            errors[digit] += 1
             error += 1
+
+print("Error " + str(error))
+print("Detail " + str(errors))
 
 pdb.set_trace()
 

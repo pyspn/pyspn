@@ -20,27 +20,32 @@ from tmm import *
 def main():
     print("Loading models...")
 
-    model_name = 'tmm_16_[7, 8]'
+    model_name = 'mm_2_'
     model = pickle.load(open(model_name, 'rb'))
-    leaves_a = model.networks[7].concat_leaves.child_list
-    leaves_b = model.networks[8].concat_leaves.child_list
 
-    print("Models loaded")
+    for (i, digit) in enumerate(model.networks):
+        network = model.networks[digit]
+        leaves = network.concat_leaves.child_list
 
-    def save_activation(leaves, fname):
-        sz = int(math.sqrt(len(leaves)))
-        print("Saving as " + str(sz) + "x" + str(sz))
-        img = np.zeros((sz, sz))
-        for (i, leaf) in enumerate(leaves):
-            y_idx = int(i % sz)
-            x_idx = int(i / sz)
-            img[x_idx][y_idx] = leaf.mean
+        structure = network.structure
+        num_channels = structure.num_channels
 
-        activation_name = fname + '_activation.csv'
-        np.savetxt(activation_name, img, delimiter=",")
+        leaves_network_id = ['0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '1', '1', '1', '1']
 
-    save_activation(leaves_a, 'tmm_1_7')
-    save_activation(leaves_b, 'tmm_1_8')
+        area = int(structure.x_size * structure.y_size)
+        channel_leaves = [np.zeros((structure.x_size, structure.y_size)) for c in range(num_channels)]
+        for (leaf_idx, leaf) in enumerate(leaves):
+            leaf_channel = int(leaves_network_id[leaf_idx])
+            input_index = network.leaves_input_indices[leaf_idx]
+            x_idx = int(input_index % structure.x_size)
+            y_idx = int(input_index / structure.x_size)
+            channel_leaves[leaf_channel][y_idx][x_idx] = leaf.mean
+
+        for channel_idx in range(num_channels):
+            img = channel_leaves[channel_idx]
+            activation_name = model_name + "_" + str(channel_idx) + "_" + str(digit) + ".csv"
+            np.savetxt(activation_name, img, delimiter=",")
+            print("Activation saved as: " + activation_name)
 
 if __name__=='__main__':
     main()
