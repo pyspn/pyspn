@@ -21,6 +21,8 @@ class CVMetaData(object):
 
         # The input index of the i-th leaf.
         self.leaves_input_indices = []
+        self.leaves_network_id = []
+        self.num_leaves_per_network = None
 
         self.get_cv_metadata(cv)
 
@@ -73,6 +75,8 @@ class CVMetaData(object):
 
         self.masks_by_level = self.get_masks_by_level(cv)
         self.leaves_input_indices = self.get_leaves_input_indices(cv)
+        self.leaves_network_id = self.get_leaves_network_id(cv)
+        self.num_leaves_per_network = cv.x_size * cv.y_size
 
     def get_masks_by_level(self, cv):
         '''
@@ -104,10 +108,18 @@ class CVMetaData(object):
         leaves_input_indices = []
         for leaf in leaves:
             index = int(leaf.y) * cv.x_size + int(leaf.x)
-            print("Index " + str(index))
             leaves_input_indices.append(index)
 
         return leaves_input_indices
+
+    def get_leaves_network_id(self, cv):
+        leaves = self.nodes_by_level[-1]
+
+        leaves_network_id = []
+        for leaf in leaves:
+            leaves_network_id.append(int(leaf.network_id))
+
+        return leaves_network_id
 
 def get_edge_count_from_layers(cv_layers):
     '''

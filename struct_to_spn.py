@@ -37,6 +37,8 @@ class MatrixSPN(network.Network):
         self.layers = []
 
         self.leaves_input_indices = None
+        self.leaves_network_id = None
+        self.num_leaves_per_network = None
 
         self.generate_network()
 
@@ -45,7 +47,11 @@ class MatrixSPN(network.Network):
         cond_mask_dict = {}
 
         for (i, leaf) in enumerate(self.leaves):
-            input_index = self.leaves_input_indices[i]
+            network_id = self.leaves_network_id[i]
+            relative_input_index = self.leaves_input_indices[i]
+
+            input_index = network_id * self.num_leaves_per_network + relative_input_index
+
             _val = np.array([ data[:, input_index] ])
             val_dict[leaf] = _val
             cond_mask_dict[leaf] = np.zeros(_val.shape)
@@ -130,6 +136,8 @@ class MatrixSPN(network.Network):
         metadata = CVMetaData(self.structure)
 
         self.leaves_input_indices = metadata.leaves_input_indices
+        self.num_leaves_per_network = metadata.num_leaves_per_network
+        self.leaves_network_id = metadata.leaves_network_id
 
         # create leaves
         leaves = self.generate_gaussian_leaves(metadata)

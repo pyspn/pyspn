@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('mnist/dataset/train_mnist_16.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []

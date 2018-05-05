@@ -27,6 +27,7 @@ class Leaf(object):
         self.depth = 0
         self.id = str([x, y])
         self.node_type = "Leaf"
+        self.network_id = None
 
 
 class Node(object):
@@ -446,6 +447,11 @@ class MultiChannelConvSPN(GraphSPN):
         channels = []
         for i in range(self.num_channels):
             channel = ConvSPN(self.x_size, self.y_size, self.sum_shifts, self.prd_subdivs)
+
+            for leaf_scope in channel.cached_leaf:
+                leaf = channel.cached_leaf[leaf_scope]
+                leaf.network_id = str(i)
+
             self.populate_cache_from_spn(channel)
             channels.append(channel)
 
