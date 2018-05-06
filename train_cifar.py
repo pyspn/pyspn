@@ -118,7 +118,7 @@ class TrainedConvSPN(torch.nn.Module):
             loss.backward()
             total_loss += loss
 
-            if i % batch == 0 or i == num_sample - 1:
+            if i % batch == 0 or i == num_iter - 1:
                 print("Total loss on sample " + str(i) + " :" + str(total_loss[0][0].data))
 
                 if np.isnan(total_loss.data.cpu().numpy()):
