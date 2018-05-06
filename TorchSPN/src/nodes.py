@@ -83,7 +83,7 @@ class SumNodes(Nodes):
 
         x_onehot = []
         for idx, onedist in enumerate(dist):
-            onedist = onedist.data.numpy()
+            onedist = onedist.data.cpu().numpy()
             while sum(onedist) > 1:
                 onedist *= .999
             sample_onedist = np.random.multinomial(1, onedist, n_batch)
@@ -261,8 +261,8 @@ class GaussianNodes(Nodes):
         pass
 
     def gen_samples(self, num=2):
-        self.samples = np.random.normal(float(self.mean.data.numpy()),
-                         float(np.exp(self.logstd.data.numpy())),
+        self.samples = np.random.normal(float(self.mean.data.cpu().numpy()),
+                         float(np.exp(self.logstd.data.cpu().numpy())),
                          (num,1)
                          )
         return self.samples

@@ -16,7 +16,7 @@ for channel in range(3):
     for (i, pix) in enumerate(img[:,channel]):
         x_idx = i % sz
         y_idx = i / sz
-        tmp[y_idx][x_idx][channel] = pix
+        tmp[y_idx][x_idx][channel] = (pix - 0.5) * 2.7
 
 plt.imshow(tmp)
 plt.show()
