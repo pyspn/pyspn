@@ -104,7 +104,7 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_on_img(self, img, img_key, num_iter):
-        opt = optim.Adam( self.parameters() , lr=.003)
+        opt = optim.Adam( self.parameters() , lr=.05)
         self.zero_grad()
 
         batch = 10
@@ -171,7 +171,7 @@ def main():
     print("Creating SPN")
     tspn = TrainedConvSPN([img_key])
     print("Training SPN")
-    tspn.train_on_img(img, img_key, 1000)
+    tspn.train_on_img(img, img_key, 500)
     tspn.save_model('cifar_oneimg_' + str(img_key))
 
     pdb.set_trace()
