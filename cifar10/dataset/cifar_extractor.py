@@ -18,7 +18,7 @@ def get_data_and_labels():
 
     for i in range(5):
         id = str(i + 1)
-        filename = "cifar10/dataset/data_batch_" + id
+        filename = "data_batch_" + id
         batch = unpickle(filename)
 
         labels_key = 'labels'.encode()
@@ -30,7 +30,7 @@ def get_data_and_labels():
 
         batch_data = []
         for i in range(len(raw_batch_data)):
-            np_data = (np.array(raw_batch_data[i], dtype='float32') / 255) - 0.5
+            np_data = (np.array(raw_batch_data[i], dtype='float32') / 255)
             batch_data.append(np_data)
 
         data.extend(batch_data)
