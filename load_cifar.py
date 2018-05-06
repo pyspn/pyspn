@@ -15,12 +15,12 @@ from timeit import default_timer as timer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
-from tmm import *
+from train_cifar import *
 
 def main():
     print("Loading models...")
 
-    model_name = 'mm_2_'
+    model_name = 'cifar_oneimg_2'
     model = pickle.load(open(model_name, 'rb'))
 
     for (i, img_keys) in enumerate(model.networks):
@@ -31,13 +31,11 @@ def main():
         num_channels = structure.num_channels
 
         area = int(structure.x_size * structure.y_size)
-        img = np.zeros((structure.x_size, structure.y_size, num_channels))
+        img = np.zeros((area, num_channels))
         for (leaf_idx, leaf) in enumerate(leaves):
             leaf_channel = network.leaves_network_id[leaf_idx]
             input_index = network.leaves_input_indices[leaf_idx]
-            x_idx = int(input_index % structure.x_size)
-            y_idx = int(input_index / structure.x_size)
-            img[y_idx][x_idx][leaf_channel] = leaf.mean
+            img[input_index][leaf_channel] = leaf.mean
 
         img = (img + 0.5).clip(min=0, max=1)
 
