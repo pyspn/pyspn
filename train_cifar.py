@@ -55,6 +55,82 @@ class TrainedConvSPN(torch.nn.Module):
 
         return loss
 
+    def compute_total_loss(self, sample_img_key, per_network_loss):
+        correct_nll= per_network_loss[sample_img_key]
+
+        loss = 0
+        margin = 1
+        for img_key in self.img_keys:
+            if img_key != sample_img_key:
+                other_nll = per_network_loss[img_key]
+                class_loss = (margin + correct_nll - other_nll).clamp(min=0)
+                loss += class_loss
+
+        return loss
+
+    def train_discriminatively(self, num_sample):
+        opt = optim.SGD( self.parameters() , lr=.0003)
+        self.zero_grad()
+
+        batch = 10
+        total_loss = 0
+
+        i = 0
+        while i < num_sample:
+            self.examples_trained += 1
+            for sample_img_key in self.img_keys:
+                input = segmented_data[sample_img_key][i]
+
+                per_network_loss = {}
+                for img_key in self.img_keys:
+                    per_network_loss[img_key] = self.loss_for_img(img_key, input)
+
+                loss = self.compute_total_loss(sample_img_key, per_network_loss)
+
+                loss.backward()
+                total_loss += loss
+
+            if i % batch == 0 or i == num_sample - 1:
+                print("Total loss: " + str(i) + " " + str(total_loss.data))
+
+                if np.isnan(total_loss.data.cpu().numpy()):
+                    return
+                total_loss = 0
+                opt.step()
+
+                self.zero_grad()
+                self.shared_parameters.proj()
+
+            i += 1
+
+    def train_on_img(self, img, img_key, num_iter):
+        opt = optim.Adam( self.parameters() , lr=.003)
+        self.zero_grad()
+
+        batch = 10
+        total_loss = 0
+
+        i = 0
+        while i < num_iter:
+            self.examples_trained += 1
+            loss = self.loss_for_img(img_key, img)
+
+            loss.backward()
+            total_loss += loss
+
+            if i % batch == 0 or i == num_sample - 1:
+                print("Total loss on sample " + str(i) + " :" + str(total_loss[0][0].data))
+
+                if np.isnan(total_loss.data.cpu().numpy()):
+                    return
+
+                total_loss = 0
+                opt.step()
+                self.zero_grad()
+                self.shared_parameters.proj()
+
+            i += 1
+
     def train_generatively(self, num_sample):
         opt = optim.Adam( self.parameters() , lr=.003)
         self.zero_grad()
@@ -76,7 +152,7 @@ class TrainedConvSPN(torch.nn.Module):
             if i % batch == 0 or i == num_sample - 1:
                 print("Total loss on sample " + str(i) + " :" + str(total_loss[0][0].data))
 
-                if np.isnan(total_loss[0][0].data.cpu().numpy()):
+                if np.isnan(total_loss.data.cpu().numpy()):
                     return
                 total_loss = 0
                 opt.step()
@@ -89,13 +165,14 @@ def main():
     print("Loading dataset...")
     global segmented_data
     segmented_data = get_segmented_data()
-    img_keys = [0]
+    img_key = 2
+    img = segmented_data[2][0]
 
     print("Creating SPN")
-    tspn = TrainedConvSPN(img_keys)
+    tspn = TrainedConvSPN([img_key])
     print("Training SPN")
-    tspn.train_generatively(100)
-    tspn.save_model('cifar_' + str(img_keys))
+    tspn.train_on_img(img, img_key, 1000)
+    tspn.save_model('cifar_oneimg_' + str(img_key))
 
     pdb.set_trace()
 
