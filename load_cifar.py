@@ -15,7 +15,7 @@ from timeit import default_timer as timer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
-from tmm import *
+from train_cifar import *
 
 def save_activations(model, model_name):
     for (i, img_keys) in enumerate(model.networks):
@@ -26,7 +26,7 @@ def save_activations(model, model_name):
         num_channels = structure.num_channels
 
         area = int(structure.x_size * structure.y_size)
-        img = np.zeros((structure.x_size, structure.y_size, num_channels))
+        img = np.zeros((area, num_channels))
         for (leaf_idx, leaf) in enumerate(leaves):
             leaf_channel = network.leaves_network_id[leaf_idx]
             input_index = network.leaves_input_indices[leaf_idx]
@@ -44,7 +44,7 @@ def generate_sample(model, model_name):
         img_size = network.structure.x_size * network.structure.y_size
         n_var = img_size * 3
         node2var = [network.leaves_network_id[i] * img_size + network.leaves_input_indices[i] for i in range(n_var)]
-        sample = model.GenSample(node2var, n_batch=1, n_var=n_var)[0]
+        img = network.GenSample(node2var, n_batch=1, n_var=n_var)[0]
 
         img = (img + 0.5).clip(min=0, max=1).reshape((img_size, 3))
 
