@@ -8,6 +8,7 @@ import sys
 from struct_gen import *
 from matrix_gen import *
 import math
+from random import randint
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
@@ -87,10 +88,8 @@ class MatrixSPN(network.Network):
 
         leaves = []
         for i in range(num_leaves):
-            mean = np.random.normal(0, 0.5)
-            std = np.random.normal(0.5, 0.2)
-            if std < .6:
-                std = .6
+            mean = np.random.normal(0, 1) + randint(1, 10)
+            std = np.random.uniform(0.006, 5)
 
             mean = np.array([mean], dtype='float32')
             std = np.array([std], dtype='float32')
