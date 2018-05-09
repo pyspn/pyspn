@@ -7,6 +7,9 @@ import os.path
 import sys
 import pdb
 
+import time
+from collections import defaultdict
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src import nodes, edges, gl
@@ -41,14 +44,43 @@ class Network(torch.nn.Module):
         Override torch.nn.Module.forward
         :return: last layer's values
         '''
+        durations = []
+
+        leaf_start = time.time()
         for layer in self.leaflist:
             val = layer()
             if gl.debug:
                 print('Leaf node: {}'.format(val.data.cpu().numpy()))
+        leaf_end = time.time()
+        leaf_duration = leaf_end - leaf_start
+
+        durations.append(leaf_duration)
+
         for layer in self.nodelist:
+            node_start = time.time()
             val = layer()
+            node_end = time.time()
+            node_duration = node_end - node_start
+            durations.append(node_duration)
             if gl.debug:
                 print('Intermediate node: {}'.format(val.data.cpu().numpy()))
+
+        durations_by_type = defaultdict(float)
+
+        for (i, duration) in enumerate(durations):
+            if i == 0:
+                node_type = "Leaf"
+                durations_by_type[node_type] += duration
+                print(str(i) + " " + node_type + " " + str(duration))
+            else:
+                node_type = str(type(self.nodelist[i - 1]))
+                durations_by_type[node_type] += duration
+                print(str(i) + " " + node_type + " " + str(duration))
+
+        for node_type in durations_by_type:
+            print(node_type + " :" + str(durations_by_type[node_type]))
+
+        pdb.set_trace()
 
         return val
 

@@ -47,15 +47,10 @@ class MatrixSPN(network.Network):
         val_dict = {}
         cond_mask_dict = {}
 
-        for (i, leaf) in enumerate(self.leaves):
-            network_id = self.leaves_network_id[i]
-            relative_input_index = self.leaves_input_indices[i]
-
-            input_index = network_id * self.num_leaves_per_network + relative_input_index
-
-            _val = np.array([ data[:, input_index] ])
-            val_dict[leaf] = _val
-            cond_mask_dict[leaf] = np.zeros(_val.shape)
+        for (i, x) in enumerate(data):
+            leaf = self.leaves[i]
+            val_dict[leaf] = x
+            cond_mask_dict[leaf] = np.zeros(x.shape)
 
         return (val_dict, cond_mask_dict)
 
@@ -86,25 +81,16 @@ class MatrixSPN(network.Network):
     def generate_gaussian_leaves(self, metadata):
         num_leaves = metadata.num_nodes_by_level[-1]
 
-        leaves = []
-        for i in range(num_leaves):
-            mean = np.random.normal(0, 1) + randint(1, 10)
-            std = np.random.uniform(0.006, 5)
+        mean = np.random.uniform(-0.5, 0.5, num_leaves).astype('float32')
+        std = np.random.uniform(0.006, 5, num_leaves).astype('float32')
 
-            mean = np.array([mean], dtype='float32')
-            std = np.array([std], dtype='float32')
+        leaf = self.AddGaussianNodes(
+            mean,
+            std,
+            parameters=self.shared_parameters)
+        self.leaves.append(leaf)
 
-            leaf = self.AddGaussianNodes(
-                mean,
-                std,
-                parameters=self.shared_parameters)
-            leaves.append(leaf)
-
-        self.leaves = leaves
-        concatenated_leaves = self.AddConcatLayer(leaves)
-        self.concat_leaves = concatenated_leaves
-
-        return concatenated_leaves
+        return leaf
 
     def compute_prob(self, x):
         (val_dict, cond_mask_dict) = self.get_mapped_input_dict(np.array([x]))

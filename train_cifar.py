@@ -170,8 +170,9 @@ def main():
 
     print("Creating SPN")
     tspn = TrainedConvSPN([img_key])
+
     print("Training SPN")
-    tspn.train_on_img(img, img_key, 500)
+    tspn.train_on_img(img, img_key, 10)
     tspn.save_model('cifar_oneimg_' + str(img_key))
 
     pdb.set_trace()

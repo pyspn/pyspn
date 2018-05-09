@@ -18,7 +18,7 @@ def get_data_and_labels():
 
     for i in range(5):
         id = str(i + 1)
-        filename = "data_batch_" + id
+        filename = "cifar10/dataset/data_batch_" + id
         batch = unpickle(filename)
 
         labels_key = 'labels'.encode()
@@ -68,4 +68,3 @@ def visualize_image(segmented_data, img_key, idx):
 if __name__ == '__main__':
     segmented_data = get_segmented_data()
     visualize_image(segmented_data, 2, 0)
-

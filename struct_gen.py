@@ -19,16 +19,23 @@ class Scope(object):
         self.id = str(x_ori) + "_" + str(y_ori) + "_" + \
             str(x_size) + "_" + str(y_size)
 
-
 class Leaf(object):
+    def __init__(self, id):
+        self.id = id
+
+class PixelLeaf(Leaf):
     def __init__(self, x, y):
+        id = str([x, y])
+        super(PixelLeaf, self).__init__(id)
         self.x = x
         self.y = y
         self.depth = 0
-        self.id = str([x, y])
         self.node_type = "Leaf"
         self.network_id = None
 
+class BinaryLeaf(Leaf):
+    def __init__(self, id):
+        super(BinaryLeaf, self).__init__(id)
 
 class Node(object):
     def __init__(self, scope, node_type=None):
@@ -65,9 +72,9 @@ class CompleteSPN(object):
     def generate_sum(self, start, end):
         scope_size = end - start + 1
 
-        # If scope only contain a leaf, replace with a leaf node
+        # If scope only contain a PixelLeaf, replace with a PixelLeaf node
         if scope_size == 1:
-            leaf =  Leaf(0, 0)
+            leaf = PixelLeaf(0, 0)
             leaf.id = start
             return leaf
 
@@ -127,7 +134,7 @@ class FlatSPN(object):
 
         for y in range(self.y_size):
             for x in range(self.x_size):
-                child_leaf = Leaf(x, y)
+                child_leaf = PixelLeaf(x, y)
                 self.root.children.append(child_leaf)
 
 class GraphSPN(object):
@@ -156,7 +163,7 @@ class GraphSPN(object):
                 level_size -= 1
 
                 level_type = u.node_type
-                if isinstance(u, Leaf):
+                if isinstance(u,PixelLeaf):
                     continue
 
                 node_count += 1
@@ -209,7 +216,7 @@ class ConvSPN(GraphSPN):
         if scope.id in self.cached_leaf:
             return self.cached_leaf[scope.id]
 
-        leaf = Leaf(scope.x_ori, scope.y_ori)
+        leaf = PixelLeaf(scope.x_ori, scope.y_ori)
         leaf.depth = depth
         self.cached_leaf[scope.id] = leaf
 
@@ -220,7 +227,7 @@ class ConvSPN(GraphSPN):
         self.depth = max(self.depth, depth)
         child_depth = depth + 1
 
-        # Check if we have a leaf node
+        # Check if we have a PixelLeaf node
         if scope.x_size == 1 and scope.y_size == 1:
             return self.generate_leaf(scope, child_depth)
 
@@ -403,7 +410,7 @@ class ConvSPN(GraphSPN):
 
                 all.append(u.id)
 
-                if isinstance(u, Leaf):
+                if isinstance(u,PixelLeaf):
                     continue
                 for v in u.children:
                     q.append(v)
@@ -435,6 +442,29 @@ class MultiChannelConvSPN(GraphSPN):
 
         self.generate_spn()
 
+    def get_ordered_leaves(self, leaves):
+        '''
+        Orders the leaves to match input
+        [input_channel_0, ..., input_channel_(k-1)]
+
+        Where input_channel is row-ordered
+        '''
+        print("Ordering Leaves...")
+        leaves_input_indices = []
+        per_network_size = self.x_size * self.y_size
+        for leaf in leaves:
+            index_within_network = int(leaf.y) * self.x_size + int(leaf.x)
+            index = (leaf.network_id * per_network_size) + index_within_network
+
+            leaves_input_indices.append(index)
+
+        leaf_index_pairs = zip(leaves, leaves_input_indices)
+        leaf_index_pairs = sorted(leaf_index_pairs, key=lambda pair: pair[1])
+
+        sorted_leaves = [pair[0] for pair in leaf_index_pairs]
+
+        return sorted_leaves
+
     def generate_spn(self):
         '''
         1. Generate root
@@ -450,7 +480,7 @@ class MultiChannelConvSPN(GraphSPN):
 
             for leaf_scope in channel.cached_leaf:
                 leaf = channel.cached_leaf[leaf_scope]
-                leaf.network_id = str(i)
+                leaf.network_id = i
 
             self.populate_cache_from_spn(channel)
             channels.append(channel)
@@ -477,7 +507,7 @@ class MultiChannelConvSPN(GraphSPN):
                 if isinstance(u, Product):
                     self.cached_prd[u.scope.id].append(u)
 
-                if isinstance(u, Leaf):
+                if isinstance(u, PixelLeaf):
                     self.cached_leaf[u.id].append(u)
                     continue
 
@@ -498,7 +528,7 @@ class MultiChannelConvSPN(GraphSPN):
                 u = q.popleft()
                 level_size -= 1
 
-                if isinstance(u, Leaf):
+                if isinstance(u, PixelLeaf):
                     continue
 
                 for v in u.children:
@@ -516,6 +546,60 @@ class MultiChannelConvSPN(GraphSPN):
                         interchannel_children.extend(inter_child_in_v)
 
                     u.children = interchannel_children
+
+class ClassifierSPN(GraphSPN):
+    def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, num_channels, num_classes):
+        super(ClassifierSPN, self).__init__()
+
+        self.x_size = x_size
+        self.y_size = y_size
+        self.sum_shifts = sum_shifts
+        self.prd_subdivs = prd_subdivs
+        self.num_channels = num_channels
+        self.num_classes = num_classes
+
+        self.generate_spn()
+
+    def generate_spn(self):
+        root_scope = Scope(0, 0, self.x_size, self.y_size)
+        root = Sum(root_scope)
+
+        classes = []
+        for c in range(num_classes):
+            classifier = MultiChannelConvSPN(self.x_size, self.y_size, self.sum_shifts, self.prd_subdivs, self.num_channels)
+            class_root = self.create_class_node(classifier, c)
+            classes.append(class_root)
+
+        root.children = classes
+
+    def create_class_node(self, classifier, class_id):
+        '''
+        Create a product node with the class and its one-hot
+        '''
+
+        # note that it actually has an additional binary variable
+        class_scope = Scope(0, 0, self.x_size, self.y_size)
+        class_root = Product(class_scope)
+
+        classifier_depth = classifier.depth
+
+        binary_root = BinaryLeaf(class_id)
+        binary_depth = 0
+        empty_scope = Scope(0, 0, 0, 0)
+        while binary_depth < classifier_depth:
+            if binary_depth % 2 == 0:
+                new_root = Product(empty_scope)
+            else:
+                new_root = Sum(empty_scope)
+
+            new_root.children = [binary_root]
+            binary_root = new_root
+
+            binary_depth += 1
+
+        class_root.children = [binary_root, classifier.root]
+
+        return class_root
 
 
 def overlap(scope1, scope2):
@@ -555,7 +639,7 @@ def check_validity(root):
     '''
     scope_hash = set()
     for child in root.children:
-        if isinstance(child, Leaf):
+        if isinstance(child, PixelLeaf):
             if len(scope_hash) == 0:
                 scope_hash.add(child.id)
             if root.node_type == 'Sum':

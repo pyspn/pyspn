@@ -63,6 +63,9 @@ class CVMetaData(object):
                     visited[child] = True
                     q.append(child)
 
+            if level_type is None: # HACK: Level type is always none on leaf layer. Fix this!
+                curr_level = cv.get_ordered_leaves(curr_level)
+
             self.type_by_level.append(level_type)
             self.nodes_by_level.append(curr_level)
             self.num_nodes_by_level.append(len(curr_level))
@@ -74,8 +77,8 @@ class CVMetaData(object):
         self.depth = level
 
         self.masks_by_level = self.get_masks_by_level(cv)
-        self.leaves_input_indices = self.get_leaves_input_indices(cv)
         self.leaves_network_id = self.get_leaves_network_id(cv)
+        self.leaves_input_indices = self.get_leaves_input_indices(cv)
         self.num_leaves_per_network = cv.x_size * cv.y_size
 
     def get_masks_by_level(self, cv):
@@ -106,8 +109,9 @@ class CVMetaData(object):
         leaves = self.nodes_by_level[-1]
 
         leaves_input_indices = []
+        input_size = cv.x_size * cv.y_size
         for leaf in leaves:
-            index = int(leaf.y) * cv.x_size + int(leaf.x)
+            index = int(leaf.y) * cv.x_size + int(leaf.x) + leaf.network_id * input_size
             leaves_input_indices.append(index)
 
         return leaves_input_indices

@@ -258,6 +258,7 @@ class GaussianNodes(Nodes):
         self.mean  = mean
         self.logstd = logstd
         self.is_cuda = is_cuda
+        self.parent_edges = []
         pass
 
     def gen_samples(self, num=2):
@@ -300,8 +301,7 @@ class GaussianNodes(Nodes):
         pass
 
     def std_proj_hook(self):
-        if self.logstd.data.cpu().numpy().__float__() < -100:
-            self.std.data = self.std.data.clamp(min=-85)
+        self.logstd.data = self.logstd.data.clamp(min=-85)
 
 
 class MultinomialNodes(Nodes):

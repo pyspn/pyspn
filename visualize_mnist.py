@@ -8,19 +8,22 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-img = genfromtxt('mm_2__0_8.csv', delimiter=',')
+img = genfromtxt('activations/um_fs_uw.csv', delimiter=',')
 
-#sz = math.sqrt(len(img))
-#tmp = np.zeros((sz, sz))
+sz = len(img)
+img = np.repeat(img, 3).reshape((sz, sz, 3))
 
+#img = img.reshape((sz*sz,))
+#tmp = np.zeros((32, 32, 3))
 #for (i, pix) in enumerate(img):
-#    y_idx = i % sz
-#    x_idx = i / sz
-#    pdb.set_trace()
-#    tmp[x_idx][y_idx] = pix
-#img = tmp
+#    x_idx = int(i / 32)
+#    y_idx = int(i % 32)
+#    tmp[y_idx][x_idx][0] = pix
+#    tmp[y_idx][x_idx ][1] = pix
+#    tmp[y_idx][x_idx][2] = pix
+#img=tmp
 
-img = img.clip(min=0, max=1)
+img += 0.5
 
 plt.imshow(img)
 plt.show()
