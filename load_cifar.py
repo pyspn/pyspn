@@ -20,19 +20,17 @@ from train_cifar import *
 def save_activations(model, model_name):
     for (i, img_keys) in enumerate(model.networks):
         network = model.networks[img_keys]
-        leaves = network.concat_leaves.child_list
+        leaves_mean = network.leaves[0].mean
 
         structure = network.structure
         num_channels = structure.num_channels
 
         area = int(structure.x_size * structure.y_size)
         img = np.zeros((area, num_channels))
-        for (leaf_idx, leaf) in enumerate(leaves):
+        for (leaf_idx, leaf_mean) in enumerate(leaves_mean):
             leaf_channel = network.leaves_network_id[leaf_idx]
-            input_index = network.leaves_input_indices[leaf_idx]
-            img[input_index][leaf_channel] = leaf.mean
-
-        img = (img + 0.5).clip(min=0, max=1)
+            input_index = leaf_idx % area
+            img[input_index][leaf_channel] = leaf_mean
 
         activation_name = "leaves_" + model_name + "_" + str(img_keys) + ".csv"
         np.savetxt(activation_name, img, delimiter=",")
@@ -58,7 +56,7 @@ def main():
     model_name = 'cifar_oneimg_2'
     model = pickle.load(open(model_name, 'rb'))
 
-    generate_sample(model, model_name)
+    save_activations(model, model_name)
 
 if __name__=='__main__':
     main()

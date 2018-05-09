@@ -7,7 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-img = genfromtxt('activations/um_fs_uw.csv', delimiter=',')
+img = genfromtxt('leaves_cifar_oneimg_2_2.csv', delimiter=',')
 
 sz = math.sqrt(len(img))
 tmp = np.zeros((sz, sz, 3))

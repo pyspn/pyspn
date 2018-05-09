@@ -8,7 +8,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-img = genfromtxt('activations/um_fs_uw.csv', delimiter=',')
+img = genfromtxt('leaves_cifar_oneimg_2_2.csv', delimiter=',')
 
 sz = len(img)
 img = np.repeat(img, 3).reshape((sz, sz, 3))

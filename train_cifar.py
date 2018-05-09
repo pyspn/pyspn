@@ -50,7 +50,7 @@ class TrainedConvSPN(torch.nn.Module):
 
     def loss_for_img(self, img_key, input):
         network = self.networks[img_key]
-        (val_dict, cond_mask_dict) = network.get_mapped_input_dict(np.array([input]))
+        (val_dict, cond_mask_dict) = network.get_mapped_input_dict(np.array([ np.array([input]) ]))
         loss = network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
         return loss
@@ -104,10 +104,10 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_on_img(self, img, img_key, num_iter):
-        opt = optim.Adam( self.parameters() , lr=.05)
+        opt = optim.Adam( self.parameters() , lr=.05, weight_decay=0.001)
         self.zero_grad()
 
-        batch = 10
+        batch = 1
         total_loss = 0
 
         i = 0
@@ -132,7 +132,7 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_generatively(self, num_sample):
-        opt = optim.Adam( self.parameters() , lr=.003)
+        opt = optim.Adam( self.parameters() , lr=.003, weight_decay=0.001)
         self.zero_grad()
 
         batch = 10
@@ -172,7 +172,7 @@ def main():
     tspn = TrainedConvSPN([img_key])
 
     print("Training SPN")
-    tspn.train_on_img(img, img_key, 10)
+    tspn.train_on_img(img, img_key, 10000)
     tspn.save_model('cifar_oneimg_' + str(img_key))
 
     pdb.set_trace()
