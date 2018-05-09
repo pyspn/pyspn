@@ -7,6 +7,7 @@ import pdb
 import numpy as np
 import pickle
 from numpy import genfromtxt
+import time
 
 from collections import defaultdict, deque
 from struct_to_spn import *
@@ -47,7 +48,6 @@ class TrainedConvSPN(torch.nn.Module):
 
         for digit in self.digits:
             structure = MultiChannelConvSPN(16, 16, 1, 2, 3)
-            structure.print_stat()
             network = MatrixSPN(
                 structure,
                 self.shared_parameters,
@@ -62,7 +62,7 @@ class TrainedConvSPN(torch.nn.Module):
 
     def loss_for_digit(self, digit, input):
         network = self.networks[digit]
-        (val_dict, cond_mask_dict) = network.get_mapped_input_dict(np.array([input]))
+        (val_dict, cond_mask_dict) = network.get_mapped_input_dict(np.array([ np.array([input]) ]))
         loss = network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
         return loss
@@ -94,8 +94,8 @@ class TrainedConvSPN(torch.nn.Module):
                 input = segmented_data[sample_digit][i]
 
                 loss = self.loss_for_digit(sample_digit, input)
-
                 loss.backward()
+
                 total_loss += loss
 
             if i % batch == 0 or i == num_sample - 1:
@@ -115,32 +115,28 @@ class TrainedConvSPN(torch.nn.Module):
         opt = optim.SGD( self.parameters() , lr=.0003)
         self.zero_grad()
 
-        batch = 10
+        batch = 100
         total_loss = 0
-
-        #pdb.set_trace()
 
         i = 0
         while i < num_sample:
             self.examples_trained += 1
             for sample_digit in self.digits:
-                input = segmented_data[sample_digit][i]
+                data_on_digit = segmented_data[sample_digit]
+                input = np.tile(segmented_data[sample_digit][int(i % len(data_on_digit))], 3)
 
                 per_network_loss = {}
                 for digit in self.digits:
                     per_network_loss[digit] = self.loss_for_digit(digit, input)
 
-                #print("Sampling " + str(sample_digit) + " with loss " + str(per_network_loss))
                 loss = self.compute_total_loss(sample_digit, per_network_loss)
 
-                #pdb.set_trace()
                 loss.backward()
                 total_loss += loss
 
             if i % batch == 0 or i == num_sample - 1:
                 print("Total loss: " + str(i) + " " + str(total_loss[0][0].data))
 
-                #pdb.set_trace()
                 if np.isnan(total_loss[0][0].data.cpu().numpy()):
                     return
                 total_loss = 0
@@ -154,12 +150,16 @@ def load_model(filename):
     pass
 
 def main():
-    digits_to_train = [4, 5, 6, 7, 8]
+    digits_to_train = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     print("Creating SPN")
     tspn = TrainedConvSPN(digits_to_train)
     print("Training SPN")
-    tspn.train_discriminatively(1000)
-    tspn.save_model('mmcspn_2_' + str(digits_to_train))
+
+    start = time.time()
+    tspn.train_discriminatively(10000)
+    end = time.time()
+    print("Duration: " + str(end - start))
+    tspn.save_model('mmcspn_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()
 

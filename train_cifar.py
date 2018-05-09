@@ -104,7 +104,7 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_on_img(self, img, img_key, num_iter):
-        opt = optim.Adam( self.parameters() , lr=.05, weight_decay=0.001)
+        opt = optim.Adam( self.parameters() , lr=.05)
         self.zero_grad()
 
         batch = 1
