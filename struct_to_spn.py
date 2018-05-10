@@ -110,7 +110,7 @@ class MatrixSPN(network.Network):
 
         log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
 
-        J = torch.sum(- log_p_tilde + log_Z) #  negative log-likelihood
+        J = - log_p_tilde + log_Z #  negative log-likelihood
 
         return J
 

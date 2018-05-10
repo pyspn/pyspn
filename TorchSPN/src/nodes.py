@@ -446,7 +446,6 @@ class MultinomialNodes(Nodes):
             self.embed_layer.weight.data[off:off+nval,:] = (thispara / partition).data
         pass
 
-
 class BinaryNodes(Nodes):
     '''
     The class of a set of inary nodes
@@ -483,7 +482,6 @@ class BinaryNodes(Nodes):
         :return: the value of this layer
         '''
         return self.val
-
 
 if __name__ == '__main__':
 
