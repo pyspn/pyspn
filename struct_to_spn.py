@@ -14,6 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 from reordering.masks import reorder
 
+use_sparse = True
 debug = True
 def dbg(debug_text):
     if debug:
@@ -140,22 +141,40 @@ class MatrixSPN(network.Network):
             self.masks.append(mask)
 
             cur_layer = None
-            if type == sum_type:
-                cur_layer = self.AddSumNodes(num_nodes)
-                weights = self.initialize_weights_from_mask(mask)
+            if use_sparse:
+                if type == sum_type:
+                    cur_layer = self.AddSparseSumNodes(num_nodes)
+                    weights = self.initialize_weights_from_mask(mask)
 
-                self.AddSumEdges(
-                    prev_layer,
-                    cur_layer,
-                    weights,
-                    mask,
-                    parameters=self.shared_parameters)
+                    self.AddSparseSumEdges(
+                        prev_layer,
+                        cur_layer,
+                        weights,
+                        mask,
+                        parameters=self.shared_parameters)
+                else:
+                    cur_layer = self.AddSparseProductNodes(num_nodes)
+                    self.AddSparseProductEdges(
+                        prev_layer,
+                        cur_layer,
+                        mask)
             else:
-                cur_layer = self.AddProductNodes(num_nodes)
-                self.AddProductEdges(
-                    prev_layer,
-                    cur_layer,
-                    mask)
+                if type == sum_type:
+                    cur_layer = self.AddSumNodes(num_nodes)
+                    weights = self.initialize_weights_from_mask(mask)
+
+                    self.AddSumEdges(
+                        prev_layer,
+                        cur_layer,
+                        weights,
+                        mask,
+                        parameters=self.shared_parameters)
+                else:
+                    cur_layer = self.AddProductNodes(num_nodes)
+                    self.AddProductEdges(
+                        prev_layer,
+                        cur_layer,
+                        mask)
 
             self.layers.append(cur_layer)
             prev_layer = cur_layer

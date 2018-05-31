@@ -18,7 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist/dataset/train_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
 
 tspn = None
 
@@ -94,7 +94,7 @@ class TrainedConvSPN(torch.nn.Module):
         while i < num_sample:
             self.examples_trained += 1
             for sample_digit in self.digits:
-                input = segmented_data[sample_digit][i]
+                input = np.tile(segmented_data[sample_digit][i:i+1], 10)
 
                 loss = self.loss_for_digit(sample_digit, input)
                 loss.backward()
@@ -115,7 +115,7 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_discriminatively(self, num_sample_per_digit):
-        opt = optim.Adam( self.parameters() , lr=.003)
+        # opt = optim.Adam( self.parameters() , lr=.003)
         self.zero_grad()
 
         batch = 10
@@ -150,24 +150,29 @@ class TrainedConvSPN(torch.nn.Module):
                 if np.isnan(total_loss[0][0].data.cpu().numpy()):
                     return
                 total_loss = 0
-                opt.step()
-                self.zero_grad()
-                self.shared_parameters.proj()
+                # opt.step()
+                # self.zero_grad()
+                # self.shared_parameters.proj()
 
 def load_model(filename):
     pass
 
 def train_spn():
     print("Training SPN")
-    tspn.train_discriminatively(10)
+    tspn.train_discriminatively(100)
 
 def main():
     global tspn
-    digits_to_train = [0,1,2,3,4,5,6,7,8,9]
+    digits_to_train = [7, 8]
     print("Creating SPN")
+
     tspn = TrainedConvSPN(digits_to_train)
     # cProfile.run('train_spn()')
+    pr = cProfile.Profile()
+    pr.enable()
     train_spn()
+    pr.disable()
+    pr.dump_stats('tmm.cprof')
 
     print("Done")
     # start = time.time()

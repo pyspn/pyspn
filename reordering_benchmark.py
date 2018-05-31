@@ -40,6 +40,7 @@ def profile_end():
 
 def cprofile_start():
     global pr
+    profile_start()
     pr = cProfile.Profile()
     pr.enable()
 
@@ -47,6 +48,7 @@ def cprofile_end():
     global pr
     pr.disable()
     pr.dump_stats('rb.cprof')
+    return profile_end()
 
 def classic_pass(mask, weight, input):
     batch = input.size()[0]
@@ -174,9 +176,9 @@ def collapse_matrix(matrix):
     return (mask, weight, input)
 
 def quick_sparse_pass(mask, weight, dim, input):
-    sel = input[:,mask]
+    sel = input[:, mask]
     dot_res = torch.mul(sel, weight)
-    condensed = torch.reshape(dot_res, dim )
+    condensed = torch.reshape(dot_res, (len(input), dim[0], dim[1]) )
 
     return torch.sum(condensed, 1)
 
@@ -203,7 +205,7 @@ def get_sparse_mwd(mask, weight):
     new_weight = torch.FloatTensor(new_weight)
     part_lg = len(idx)
 
-    return (new_idx, new_weight, (part_lg, max_length) )
+    return (Variable(new_idx), torch.nn.Parameter(new_weight, requires_grad=True), (part_lg, max_length) )
 
 def test_speedup():
     structure = MultiChannelConvSPN(16, 16, 1, 2, 10)
@@ -221,14 +223,14 @@ def test_speedup():
 
     collapsed_data = []
     mask_stats = []
-    for (i, mask) in enumerate(masks):
-        print("Collapsing " + str(i))
-        x = collapse_matrix(mask)
-        collapsed_data.append(x)
-        mask_stats.append(reorder.get_stat(mask))
-        break
-
-    print("Collapsed!")
+    # for (i, mask) in enumerate(masks):
+    #     print("Collapsing " + str(i))
+    #     x = collapse_matrix(mask)
+    #     collapsed_data.append(x)
+    #     mask_stats.append(reorder.get_stat(mask))
+    #     break
+    #
+    # print("Collapsed!")
 
     sparse_tuple = []
     for mask in masks:
@@ -239,8 +241,7 @@ def test_speedup():
     speedups = []
     normal_total = 0
     speedup_total = 0
-    # num_masks = len(masks) # TODO: Enable this again
-    num_masks = 1
+    num_masks = len(masks) # TODO: Enable this again
 
     for i in range(num_masks):
         num_iters = 10
@@ -296,15 +297,15 @@ def test_speedup():
         # profile_end()
 
         # Collapsed tensor
-        (tmask, tweights, input) = collapsed_data[i]
-
-        profile_start()
-        for it in range(num_iters):
-            bmm_pass(tmask, tweights, input)
-        sp_dur = profile_end()
-        speedup_total += sp_dur
-
-        batch = 1
+        # (tmask, tweights, input) = collapsed_data[i]
+        #
+        # profile_start()
+        # for it in range(num_iters):
+        #     bmm_pass(tmask, tweights, input)
+        # sp_dur = profile_end()
+        # speedup_total += sp_dur
+        #
+        batch = 10
         mask = torch_masks[i]
         input = torch.ones(batch, len(mask))
         weight = torch_weights[i]
@@ -312,10 +313,11 @@ def test_speedup():
         Approach 2 (condensed)
         '''
         (m, w, d) = get_sparse_mwd(torch_masks[i], torch_weights[i])
-        profile_start()
+        cprofile_start()
         for it in range(num_iters):
             val = quick_sparse_pass(m, w, d, input)
-        profile_end()
+        sp_dur = cprofile_end()
+        speedup_total += sp_dur
 
         '''
         Classic
@@ -326,13 +328,13 @@ def test_speedup():
         normal_dur = profile_end()
         normal_total += normal_dur
         #
-        # p_speedup = normal_dur / sp_dur
+        p_speedup = normal_dur / sp_dur
 
-        # speedups.append(p_speedup)
+        speedups.append(p_speedup)
     #
-    # print(speedups)
-    # print("Normal " + str(normal_total))
-    # print("Speedup " + str(speedup_total))
+    print(speedups)
+    print("Normal " + str(normal_total))
+    print("Speedup " + str(speedup_total))
 
     # reordered_mask_stats = []
     # for mask in network.masks:

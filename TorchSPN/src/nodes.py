@@ -45,6 +45,84 @@ class ConcatLayer(Nodes):
         self.val = torch.cat([c.val for c in self.child_list], dim=1)
         return self.val
 
+class SparseProductNodes(Nodes):
+    def __init__(self, is_cuda, num=1):
+        '''
+        Initialize a set of sum nodes
+        :param num: the number of sum nodes
+        '''
+        Nodes.__init__(self, is_cuda).__init__()
+        self.num = num
+        self.child_edges = []
+        self.parent_edges = []
+        self.scope = None  # todo
+        self.is_cuda = is_cuda
+
+    def forward(self):
+        self.val = None
+        for e in self.child_edges:
+            batch = len(e.child.val)
+            sel = e.child.val[:, e.flattened_indices]
+            condensed = torch.reshape(sel, (batch, e.dim[0], e.dim[1]) )
+            result = torch.sum(condensed, 2)
+
+            if self.val is None:
+                self.val = result
+            else:
+                self.val += result
+
+        return self.val
+
+class SparseSumNodes(Nodes):
+    def __init__(self, is_cuda, num=1):
+        '''
+        Initialize a set of sum nodes
+        :param num: the number of sum nodes
+        '''
+        Nodes.__init__(self, is_cuda).__init__()
+        self.num = num
+        self.child_edges = []
+        self.parent_edges = []
+        self.scope = None  # todo
+        self.is_cuda = is_cuda
+
+    def forward(self):
+        self.val = None
+
+        maxval = None
+        for e in self.child_edges:
+            current_max = torch.max(e.child.val, 1)[0]
+            if maxval is None:
+                maxval = current_max
+            else:
+                maxval = torch.max(maxval, current_max)
+        maxval.detach()
+
+        for e in self.child_edges:
+            batch = len(e.child.val)
+            maxval = torch.reshape(maxval, (batch, 1))
+
+            tmp = e.child.val - maxval
+
+            tmp = torch.t(torch.exp(tmp))
+
+            sel = torch.t(tmp[e.flattened_indices])
+
+            dot_res = torch.mul(sel, e.connection_weights)
+            condensed = torch.reshape(sel, (batch, e.dim[0], e.dim[1]) )
+            result = torch.sum(condensed, 2)
+
+            if self.val is None:
+                self.val = result
+            else:
+                self.val += result
+
+        self.val += torch.exp(torch.FloatTensor([-75]))[0]
+        self.val = torch.log(self.val)
+        self.val += maxval
+
+        return self.val
+
 class SumNodes(Nodes):
     '''
     The class of a set of sum nodes (also called a sum layer)
@@ -154,36 +232,6 @@ class SumNodes(Nodes):
         self.val = torch.log(self.val) # log( wx / max)
         self.val += maxval
         return self.val
-
-class SparseProductNodes(Nodes):
-    def __init__(self, is_cuda, num=1):
-        Nodes.__init__(self, is_cuda).__init__()
-        self.num = num
-        self.child_edges = []
-        self.parent_edges = []
-        self.val = None
-
-    def forward(self):
-        batch = self.child_edges[0].child.val.size()[0]
-        val = self.var(torch.zeros((batch, self.num)))
-
-        # TODO: Implement batch forward
-
-        for e in self.child_edges:
-            child_val = e.child.val[0]
-
-            for i in range(self.num):
-                if e.connections[i]:
-                    indices = e.connections[i]
-                    selected_child = child_val[indices]
-
-                    # if len(selected_child[selected_child == float('inf')]):
-                        # pdb.set_trace()
-
-                    val[0, i] = torch.sum(child_val[indices])
-
-        self.val = val
-        return val
 
 class ProductNodes(Nodes):
     '''

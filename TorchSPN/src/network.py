@@ -232,6 +232,11 @@ class Network(torch.nn.Module):
         self.nodelist.append(_nodes)
         return _nodes
 
+    def AddSparseSumNodes(self, num):
+        _nodes = nodes.SparseSumNodes(is_cuda=self.is_cuda, num=num)
+        self.nodelist.append(_nodes)
+        return _nodes
+
     def AddSparseProductNodes(self, num):
         _nodes = nodes.SparseProductNodes(is_cuda=self.is_cuda, num=num)
         self.nodelist.append(_nodes)
@@ -247,8 +252,26 @@ class Network(torch.nn.Module):
         self.nodelist.append(_nodes)
         return _nodes
 
-    def AddSparseProductEdges(self, lower, upper, connections):
-        _edges = edges.SparseProductEdges(lower, upper, connections)
+    def AddSparseSumEdges(
+            self,
+            lower,
+            upper,
+            mask_matrix,
+            weight_matrix,
+            parameters=None):
+        _edges = edges.SparseSumEdges(lower, upper, mask_matrix, weight_matrix)
+        upper.child_edges.append(_edges)
+        lower.parent_edges.append(_edges)
+
+        flattened_indices = self.var(_edges.flattened_indices)
+        weights = self.parameter(_edges.connection_weights, requires_grad=False)
+
+        parameters.add_param(weights, _edges.sum_weight_hook)
+
+        return _edges
+
+    def AddSparseProductEdges(self, lower, upper, mask_matrix):
+        _edges = edges.SparseProductEdges(lower, upper, mask_matrix)
         upper.child_edges.append(_edges)
         lower.parent_edges.append(_edges)
 
