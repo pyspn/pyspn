@@ -12,8 +12,9 @@ from random import randint
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
+from reordering.masks import reorder
 
-debug = False
+debug = True
 def dbg(debug_text):
     if debug:
         print(debug_text)
@@ -36,6 +37,7 @@ class MatrixSPN(network.Network):
         self.leaves = []
         self.concat_leaves = None
         self.layers = []
+        self.masks = []
 
         self.leaves_input_indices = None
         self.leaves_network_id = None
@@ -127,19 +129,20 @@ class MatrixSPN(network.Network):
         # create leaves
         leaves = self.generate_gaussian_leaves(metadata)
 
+        reorder_metadata = []
+
         # create layers bottom-up
         prev_layer = leaves
         for level in reversed(range(metadata.depth - 1)):
             type = metadata.type_by_level[level]
             num_nodes = metadata.num_nodes_by_level[level]
             mask = metadata.masks_by_level[level]
+            self.masks.append(mask)
 
             cur_layer = None
             if type == sum_type:
                 cur_layer = self.AddSumNodes(num_nodes)
                 weights = self.initialize_weights_from_mask(mask)
-
-                dbg("Level " + str(level) + ": " + str(weights))
 
                 self.AddSumEdges(
                     prev_layer,
@@ -158,3 +161,17 @@ class MatrixSPN(network.Network):
             prev_layer = cur_layer
 
         self.root = prev_layer
+
+        print("Done")
+        return
+
+def main():
+    structure = MultiChannelConvSPN(16, 16, 1, 2, 10)
+    shared_parameters = param.Param()
+    network = MatrixSPN(
+        structure,
+        shared_parameters,
+        is_cuda=False)
+
+if __name__=='__main__':
+    main()

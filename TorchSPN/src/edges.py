@@ -52,6 +52,3 @@ class SumEdges():
 
     def sum_weight_hook(self):
         self.weights.data = self.weights.data.clamp(min=EPSILON)
-
-        #partition = torch.sum(self.weights.data * self.mask.data, dim=0, keepdim=True)
-        #self.weights.data /= partition

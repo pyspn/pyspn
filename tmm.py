@@ -8,6 +8,7 @@ import numpy as np
 import pickle
 from numpy import genfromtxt
 import time
+import cProfile
 
 from collections import defaultdict, deque
 from struct_to_spn import *
@@ -18,6 +19,8 @@ from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
 test_raw = genfromtxt('mnist/dataset/train_mnist_16.csv', delimiter=',')
+
+tspn = None
 
 def segment_data():
     segmented_data = []
@@ -119,14 +122,14 @@ class TrainedConvSPN(torch.nn.Module):
         total_loss = 0
         num_sample = num_sample_per_digit * len(self.digits)
 
-        batch_start_pts = { digit:0 for digit in self.digits}
+        batch_start_pts = { digit:0 for digit in self.digits }
         while self.examples_trained < num_sample:
             prev_training_count = self.examples_trained
             for sample_digit in self.digits:
                 data_on_digit = segmented_data[sample_digit]
                 num_data_on_digit = data_on_digit.shape[0]
                 batch_start = batch_start_pts[sample_digit]
-                batch_end = min(batch_start + batch, num_data_on_digit + 1)
+                batch_end = min(batch_start + batch, num_data_on_digit)
                 input = np.tile(segmented_data[sample_digit][batch_start:batch_end], 10)
 
                 per_network_loss = {}
@@ -154,19 +157,26 @@ class TrainedConvSPN(torch.nn.Module):
 def load_model(filename):
     pass
 
+def train_spn():
+    print("Training SPN")
+    tspn.train_discriminatively(10)
+
 def main():
-    digits_to_train = [0, 1,2,3,4,5,6,7, 8,9]
+    global tspn
+    digits_to_train = [0,1,2,3,4,5,6,7,8,9]
     print("Creating SPN")
     tspn = TrainedConvSPN(digits_to_train)
-    print("Training SPN")
+    # cProfile.run('train_spn()')
+    train_spn()
 
-    start = time.time()
-    tspn.train_discriminatively(10000)
-    end = time.time()
-    print("Duration: " + str(end - start))
-    tspn.save_model('mmcspn_' + str(digits_to_train).replace(" ", ""))
+    print("Done")
+    # start = time.time()
+    # tspn.train_discriminatively(10)
+    # end = time.time()
+    # print("Duration: " + str(end - start))
+    # tspn.save_model('mmcspn_' + str(digits_to_train).replace(" ", ""))
 
-    pdb.set_trace()
+    # pdb.set_trace()
 
 if __name__ == '__main__':
     main()
