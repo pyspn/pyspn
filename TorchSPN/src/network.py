@@ -264,7 +264,7 @@ class Network(torch.nn.Module):
         lower.parent_edges.append(_edges)
 
         flattened_indices = self.var(_edges.flattened_indices)
-        weights = self.parameter(_edges.connection_weights, requires_grad=False)
+        weights = self.parameter(_edges.connection_weights, requires_grad=True)
 
         parameters.add_param(weights, _edges.sum_weight_hook)
 

@@ -113,7 +113,7 @@ class SparseSumEdges():
         return (indices, sparse_weights)
 
     def sum_weight_hook(self):
-        self.connection_weights.data = self.connection_weights.data.clamp(min=EPSILON)
+        self.connection_weights = self.connection_weights.clamp(min=EPSILON)
 
 class ProductEdges():
     '''

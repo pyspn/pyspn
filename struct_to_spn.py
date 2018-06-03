@@ -149,8 +149,8 @@ class MatrixSPN(network.Network):
                     self.AddSparseSumEdges(
                         prev_layer,
                         cur_layer,
-                        weights,
                         mask,
+                        weights,
                         parameters=self.shared_parameters)
                 else:
                     cur_layer = self.AddSparseProductNodes(num_nodes)

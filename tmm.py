@@ -50,7 +50,7 @@ class TrainedConvSPN(torch.nn.Module):
         self.shared_parameters = param.Param()
 
         for digit in self.digits:
-            structure = MultiChannelConvSPN(16, 16, 1, 2, 10)
+            structure = MultiChannelConvSPN(16, 16, 4, 2, 10)
             network = MatrixSPN(
                 structure,
                 self.shared_parameters,
@@ -168,11 +168,14 @@ def main():
 
     tspn = TrainedConvSPN(digits_to_train)
     # cProfile.run('train_spn()')
-    pr = cProfile.Profile()
-    pr.enable()
+    # pr = cProfile.Profile()
+    # pr.enable()
+    start = time.time()
     train_spn()
-    pr.disable()
-    pr.dump_stats('tmm.cprof')
+    # pr.disable()
+    # pr.dump_stats('tmm.cprof')
+    end = time.time()
+    print("Duration: " + str(end - start))
 
     print("Done")
     # start = time.time()

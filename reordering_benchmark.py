@@ -13,6 +13,7 @@ from random import randint
 import time
 from torch.autograd import Variable as Variable
 import cProfile
+from torch import optim
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
@@ -176,11 +177,22 @@ def collapse_matrix(matrix):
     return (mask, weight, input)
 
 def quick_sparse_pass(mask, weight, dim, input):
-    sel = input[:, mask]
-    dot_res = torch.mul(sel, weight)
-    condensed = torch.reshape(dot_res, (len(input), dim[0], dim[1]) )
+    val = None
 
-    return torch.sum(condensed, 1)
+    maxval = torch.max(input, 1)[0]
+    maxval.detach()
+
+    batch = len(input)
+    maxval = maxval.view(batch, 1)
+
+    tmp = input - maxval
+    tmp_exp = torch.exp(tmp)
+    long = tmp_exp[:, mask]
+    dot_res = torch.mul(long, weight)
+    condensed = dot_res.view(batch, dim[0], dim[1])
+    result = torch.sum(condensed, 2)
+
+    return result
 
 def get_sparse_mwd(mask, weight):
     (idx, wgt) = get_sparse_idx_wgt(mask, weight)
@@ -207,8 +219,11 @@ def get_sparse_mwd(mask, weight):
 
     return (Variable(new_idx), torch.nn.Parameter(new_weight, requires_grad=True), (part_lg, max_length) )
 
+def nop(mask):
+    pass
+
 def test_speedup():
-    structure = MultiChannelConvSPN(16, 16, 1, 2, 10)
+    structure = MultiChannelConvSPN(20, 20, 1, 2, 10)
     shared_parameters = param.Param()
     network = MatrixSPN(
         structure,
@@ -232,19 +247,27 @@ def test_speedup():
     #
     # print("Collapsed!")
 
+    shared_parameters = param.Param()
     sparse_tuple = []
-    for mask in masks:
+    mwd = []
+    for i, mask in enumerate(masks):
         (idx, wgt) = get_sparse_idx_wgt(mask, mask)
         input = torch.ones(len(mask))
         sparse_tuple.append((idx, wgt, input))
+        (m, w, d) = get_sparse_mwd(torch_masks[i], torch_weights[i])
+        mwd.append((m,w,d))
+
+        shared_parameters.add_param(w, hook=None)
 
     speedups = []
     normal_total = 0
     speedup_total = 0
     num_masks = len(masks) # TODO: Enable this again
 
+    opt = optim.Adam( shared_parameters.para_list, lr=.03, weight_decay=0.01)
+
     for i in range(num_masks):
-        num_iters = 10
+        num_iters = 100
 
         # Sparse
         (idx, wgt, ipt) = sparse_tuple[i]
@@ -304,7 +327,7 @@ def test_speedup():
         #     bmm_pass(tmask, tweights, input)
         # sp_dur = profile_end()
         # speedup_total += sp_dur
-        #
+
         batch = 10
         mask = torch_masks[i]
         input = torch.ones(batch, len(mask))
@@ -312,10 +335,16 @@ def test_speedup():
         '''
         Approach 2 (condensed)
         '''
-        (m, w, d) = get_sparse_mwd(torch_masks[i], torch_weights[i])
+        (m, w, d) = mwd[i]
         cprofile_start()
         for it in range(num_iters):
             val = quick_sparse_pass(m, w, d, input)
+            loss = torch.sum(val)
+            loss.backward()
+            # if it % 10 == 0:
+                # print("VAL " + str(val))
+            opt.step()
+
         sp_dur = cprofile_end()
         speedup_total += sp_dur
 
@@ -324,7 +353,8 @@ def test_speedup():
         '''
         profile_start()
         for it in range(num_iters):
-             classic_pass(mask, weight, input)
+            val = classic_pass(mask, weight, input)
+
         normal_dur = profile_end()
         normal_total += normal_dur
         #

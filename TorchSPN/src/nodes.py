@@ -63,7 +63,7 @@ class SparseProductNodes(Nodes):
         for e in self.child_edges:
             batch = len(e.child.val)
             sel = e.child.val[:, e.flattened_indices]
-            condensed = torch.reshape(sel, (batch, e.dim[0], e.dim[1]) )
+            condensed = sel.view(batch, e.dim[0], e.dim[1])
             result = torch.sum(condensed, 2)
 
             if self.val is None:
@@ -100,16 +100,15 @@ class SparseSumNodes(Nodes):
 
         for e in self.child_edges:
             batch = len(e.child.val)
-            maxval = torch.reshape(maxval, (batch, 1))
+            maxval = maxval.view(batch, 1)
 
             tmp = e.child.val - maxval
 
-            tmp = torch.t(torch.exp(tmp))
+            tmp_exp = torch.exp(tmp)
+            long_tmp = tmp_exp[:, e.flattened_indices]
 
-            sel = torch.t(tmp[e.flattened_indices])
-
-            dot_res = torch.mul(sel, e.connection_weights)
-            condensed = torch.reshape(sel, (batch, e.dim[0], e.dim[1]) )
+            dot_res = torch.mul(long_tmp, e.connection_weights)
+            condensed = dot_res.view(batch, e.dim[0], e.dim[1])
             result = torch.sum(condensed, 2)
 
             if self.val is None:
