@@ -53,7 +53,6 @@ def cprofile_end():
 
 def classic_pass(mask, weight, input):
     batch = input.size()[0]
-    num = len(mask)
 
     maxval = torch.max( input )
     maxval.detach() # disconnect during bp. any constant works here
@@ -63,6 +62,23 @@ def classic_pass(mask, weight, input):
     tmp = torch.exp(tmp) # x/max
     trueweight = mask * weight
     val = torch.mm(tmp, trueweight) # <w, x>/max
+
+    val += torch.exp(torch.FloatTensor([-75]))[0]
+    val = torch.log(val)
+    val += maxval
+
+    return val
+
+def natural_sparse_pass(weight, input):
+    batch = input.size()[0]
+
+    maxval = torch.max( input )
+    maxval.detach() # disconnect during bp. any constant works here
+
+    tmp = input - maxval # log(x/max)
+
+    tmp = torch.exp(tmp) # x/max
+    val = torch.mm(tmp, weight) # <w, x>/max
 
     val += torch.exp(torch.FloatTensor([-75]))[0]
     val = torch.log(val)
@@ -109,9 +125,9 @@ def get_sparse_idx_wgt(mask, weights):
         col_idx = []
         col_wg = []
         for r in range(num_rows):
-            if mask[r][c]:
+            if mask[r, c]:
                 col_idx.append(r)
-                col_wg.append(weights[r][c])
+                col_wg.append(weights[r, c])
         col_idx =  torch.tensor(col_idx)
         col_wg = torch.FloatTensor(col_wg)
 
@@ -188,6 +204,7 @@ def quick_sparse_pass(mask, weight, dim, input):
     tmp = input - maxval
     tmp_exp = torch.exp(tmp)
     long = tmp_exp[:, mask]
+    # long = tmp_exp[:, mask]
     dot_res = torch.mul(long, weight)
     condensed = dot_res.view(batch, dim[0], dim[1])
     result = torch.sum(condensed, 2)
@@ -219,11 +236,31 @@ def get_sparse_mwd(mask, weight):
 
     return (Variable(new_idx), torch.nn.Parameter(new_weight, requires_grad=True), (part_lg, max_length) )
 
-def nop(mask):
+def get_sparse_mtx(mask, weights):
+    num_rows = len(mask)
+    num_cols = len(mask[0])
+
+    sparse_idx = []
+    sparse_weights = []
+    for r in range(num_rows):
+        for c in range(num_cols):
+            if mask[r, c]:
+                sparse_idx.append( [r, c] )
+                sparse_weights.append(weights[r, c])
+
+    sparse_idx = torch.LongTensor(sparse_idx)
+    sparse_weights = torch.FloatTensor(sparse_weights)
+
+    sparse_mtx = torch.sparse.FloatTensor(
+        sparse_idx.t(), sparse_weights, mask.size())
+
+    return sparse_mtx
+
+def nop(mask, weight):
     pass
 
 def test_speedup():
-    structure = MultiChannelConvSPN(20, 20, 1, 2, 10)
+    structure = MultiChannelConvSPN(16, 16, 16, 2, 4)
     shared_parameters = param.Param()
     network = MatrixSPN(
         structure,
@@ -248,30 +285,27 @@ def test_speedup():
     # print("Collapsed!")
 
     shared_parameters = param.Param()
-    sparse_tuple = []
     mwd = []
+    sms = []
     for i, mask in enumerate(masks):
-        (idx, wgt) = get_sparse_idx_wgt(mask, mask)
-        input = torch.ones(len(mask))
-        sparse_tuple.append((idx, wgt, input))
+        sm = get_sparse_mtx(torch_masks[i], torch_weights[i])
+        sms.append(sm)
+
         (m, w, d) = get_sparse_mwd(torch_masks[i], torch_weights[i])
         mwd.append((m,w,d))
 
         shared_parameters.add_param(w, hook=None)
 
-    speedups = []
+    # speedups = []
+    new_sparse_total = 0
     normal_total = 0
     speedup_total = 0
     num_masks = len(masks) # TODO: Enable this again
 
-    opt = optim.Adam( shared_parameters.para_list, lr=.03, weight_decay=0.01)
+    # opt = optim.Adam( shared_parameters.para_list, lr=.03, weight_decay=0.01)
 
     for i in range(num_masks):
         num_iters = 100
-
-        # Sparse
-        (idx, wgt, ipt) = sparse_tuple[i]
-        print("NO IDX " + str(len(idx)))
 
         # '''
         # Approach 1
@@ -332,6 +366,17 @@ def test_speedup():
         mask = torch_masks[i]
         input = torch.ones(batch, len(mask))
         weight = torch_weights[i]
+
+        '''
+        Approach 3 (PyTorch Sparse)
+        '''
+        sparse_weight = sms[i]
+        cprofile_start()
+        for it in range(num_iters):
+            val = natural_sparse_pass(weight, input)
+        new_sp_dur = cprofile_end()
+        new_sparse_total += new_sp_dur
+
         '''
         Approach 2 (condensed)
         '''
@@ -339,31 +384,32 @@ def test_speedup():
         cprofile_start()
         for it in range(num_iters):
             val = quick_sparse_pass(m, w, d, input)
-            loss = torch.sum(val)
-            loss.backward()
+            # loss = torch.sum(val)
+            # loss.backward()
             # if it % 10 == 0:
                 # print("VAL " + str(val))
-            opt.step()
+            # opt.step()
 
         sp_dur = cprofile_end()
         speedup_total += sp_dur
 
-        '''
-        Classic
-        '''
+        # '''
+        # Classic
+        # '''
         profile_start()
         for it in range(num_iters):
             val = classic_pass(mask, weight, input)
 
         normal_dur = profile_end()
         normal_total += normal_dur
-        #
-        p_speedup = normal_dur / sp_dur
 
-        speedups.append(p_speedup)
+        # p_speedup = normal_dur / sp_dur
+
+        # speedups.append(p_speedup)
     #
-    print(speedups)
+    # print(speedups)
     print("Normal " + str(normal_total))
+    print("New sparse " + str(new_sparse_total))
     print("Speedup " + str(speedup_total))
 
     # reordered_mask_stats = []
