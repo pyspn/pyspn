@@ -244,7 +244,7 @@ def get_sparse_mwd(mask, weight):
         new_weight.extend(buffer_wg)
 
     new_idx = torch.LongTensor(new_idx)
-    new_weight = torch.from_numpy(np.array(new_weight))
+    new_weight = torch.from_numpy(np.array(new_weight, dtype='float32'))
     part_lg = len(idx)
 
     return (var(new_idx), parameter(new_weight), (part_lg, max_length) )
@@ -253,19 +253,23 @@ def get_sparse_mtx(mask, weights):
     num_rows = len(mask)
     num_cols = len(mask[0])
 
+    sz = mask.size()
+    mask = mask.data.cpu().numpy()
+    weights = weights.data.cpu().numpy()
+
     sparse_idx = []
     sparse_weights = []
     for r in range(num_rows):
         for c in range(num_cols):
-            if (mask[r, c].data != 0).cpu().numpy():
+            if mask[r, c]:
                 sparse_idx.append( [r, c] )
-                sparse_weights.append(weights[r, c].data.cpu())
+                sparse_weights.append(weights[r, c])
 
     sparse_idx = torch.LongTensor(sparse_idx)
     sparse_weights = torch.from_numpy(np.array(sparse_weights))
 
     sparse_mtx = torch.sparse.FloatTensor(
-        sparse_idx.t(), sparse_weights, mask.size())
+        sparse_idx.t(), sparse_weights, sz)
 
     return sparse_mtx
 
@@ -273,7 +277,7 @@ def nop(mask, weight):
     pass
 
 def test_speedup():
-    structure = MultiChannelConvSPN(16, 16, 4, 2, 10)
+    structure = MultiChannelConvSPN(8, 8, 4, 2, 8)
     shared_parameters = param.Param()
     network = MatrixSPN(
         structure,
