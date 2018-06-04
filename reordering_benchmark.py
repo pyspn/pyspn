@@ -105,6 +105,7 @@ def get_torch_masks_and_weights(masks):
     torch_weights = []
 
     for np_mask in masks:
+        np_mask = np.array(np_mask, dtype='float32')
         np_weights = np.copy(np_mask)
         mask = var( torch.from_numpy(np_mask) )
         mask.detach()
@@ -139,11 +140,9 @@ def get_sparse_idx_wgt(mask, weights):
         col_idx = []
         col_wg = []
         for r in range(num_rows):
-            if mask[r, c]:
+            if (mask[r, c].data != 0).cpu().numpy():
                 col_idx.append(r)
-                col_wg.append(weights[r, c])
-        col_idx =  torch.tensor(col_idx)
-        col_wg = torch.FloatTensor(col_wg)
+                col_wg.append(weights[r, c].data.cpu())
 
         indices.append(col_idx)
         sparse_weights.append(col_wg)
@@ -244,8 +243,8 @@ def get_sparse_mwd(mask, weight):
         buffer_wg = [0] * (max_length - len(wg))
         new_weight.extend(buffer_wg)
 
-    new_idx = torch.tensor(new_idx)
-    new_weight = torch.FloatTensor(new_weight)
+    new_idx = torch.LongTensor(new_idx)
+    new_weight = torch.from_numpy(np.array(new_weight))
     part_lg = len(idx)
 
     return (var(new_idx), parameter(new_weight), (part_lg, max_length) )
@@ -258,12 +257,12 @@ def get_sparse_mtx(mask, weights):
     sparse_weights = []
     for r in range(num_rows):
         for c in range(num_cols):
-            if mask[r, c]:
+            if (mask[r, c].data != 0).cpu().numpy():
                 sparse_idx.append( [r, c] )
-                sparse_weights.append(weights[r, c])
+                sparse_weights.append(weights[r, c].data.cpu())
 
     sparse_idx = torch.LongTensor(sparse_idx)
-    sparse_weights = torch.FloatTensor(sparse_weights)
+    sparse_weights = torch.from_numpy(np.array(sparse_weights))
 
     sparse_mtx = torch.sparse.FloatTensor(
         sparse_idx.t(), sparse_weights, mask.size())
@@ -274,7 +273,7 @@ def nop(mask, weight):
     pass
 
 def test_speedup():
-    structure = MultiChannelConvSPN(16, 16, 16, 2, 4)
+    structure = MultiChannelConvSPN(16, 16, 4, 2, 10)
     shared_parameters = param.Param()
     network = MatrixSPN(
         structure,
@@ -289,14 +288,6 @@ def test_speedup():
 
     collapsed_data = []
     mask_stats = []
-    # for (i, mask) in enumerate(masks):
-    #     print("Collapsing " + str(i))
-    #     x = collapse_matrix(mask)
-    #     collapsed_data.append(x)
-    #     mask_stats.append(reorder.get_stat(mask))
-    #     break
-    #
-    # print("Collapsed!")
 
     shared_parameters = param.Param()
     mwd = []
@@ -378,7 +369,7 @@ def test_speedup():
 
         batch = 10
         mask = torch_masks[i]
-        input = torch.ones(batch, len(mask))
+        input = var(torch.ones(batch, len(mask)))
         weight = torch_weights[i]
 
         '''
