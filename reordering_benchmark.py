@@ -18,11 +18,25 @@ from torch import optim
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 from reordering.masks import reorder
+from torch import cuda
 
 debug = True
 start = None
 end = None
 pr = None
+
+is_cuda = cuda.is_available()
+def var(tensor):
+    if is_cuda:
+        tensor = tensor.cuda()
+
+    return Variable(tensor, requires_grad=False)
+
+def parameter(tensor):
+    if is_cuda:
+        tensor = tensor.cuda()
+
+    return torch.nn.Parameter(tensor, requires_grad=True)
 
 def profile_start():
     global start
@@ -92,10 +106,10 @@ def get_torch_masks_and_weights(masks):
 
     for np_mask in masks:
         np_weights = np.copy(np_mask)
-        mask = Variable( torch.from_numpy(np_mask) )
+        mask = var( torch.from_numpy(np_mask) )
         mask.detach()
 
-        weights = torch.nn.Parameter( torch.from_numpy(np_weights), requires_grad=True)
+        weights = parameter( torch.from_numpy(np_weights) )
 
         torch_masks.append(mask)
         torch_weights.append(weights)
@@ -185,10 +199,10 @@ def collapse_matrix(matrix):
         collapsed_matrix[i] = submatrix
 
     batch = 1
-    input = Variable( torch.ones(num_boxes, batch, box_dim[0]), requires_grad=False)
+    input = var( torch.ones(num_boxes, batch, box_dim[0]))
 
-    mask = Variable( torch.from_numpy(collapsed_matrix), requires_grad=False )
-    weight = torch.nn.Parameter( torch.from_numpy(collapsed_matrix), requires_grad=True)
+    mask = var( torch.from_numpy(collapsed_matrix) )
+    weight = parameter( torch.from_numpy(collapsed_matrix) )
 
     return (mask, weight, input)
 
@@ -234,7 +248,7 @@ def get_sparse_mwd(mask, weight):
     new_weight = torch.FloatTensor(new_weight)
     part_lg = len(idx)
 
-    return (Variable(new_idx), torch.nn.Parameter(new_weight, requires_grad=True), (part_lg, max_length) )
+    return (var(new_idx), parameter(new_weight), (part_lg, max_length) )
 
 def get_sparse_mtx(mask, weights):
     num_rows = len(mask)
