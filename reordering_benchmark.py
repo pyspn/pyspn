@@ -277,7 +277,7 @@ def nop(mask, weight):
     pass
 
 def test_speedup():
-    structure = MultiChannelConvSPN(8, 8, 4, 2, 8)
+    structure = MultiChannelConvSPN(8, 8, 1, 2, 8)
     shared_parameters = param.Param()
     network = MatrixSPN(
         structure,

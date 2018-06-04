@@ -34,7 +34,7 @@ class CVMetaData(object):
         '''
 
         level = 0
-        q = deque([cv.root])
+        q = deque(cv.roots)
         visited = {}
 
         # Perform a per level traversal

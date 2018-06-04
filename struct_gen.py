@@ -62,12 +62,12 @@ class CompleteSPN(object):
         self.sum_factor = sum_factor
         self.prd_factor = prd_factor
 
-        self.root = None
+        self.roots = None
         self.leaves = []
         self.generate_structure()
 
     def generate_structure(self):
-        self.root = self.generate_sum(0, num_variables - 1)
+        self.roots = [self.generate_sum(0, num_variables - 1)]
 
     def generate_sum(self, start, end):
         scope_size = end - start + 1
@@ -130,22 +130,22 @@ class FlatSPN(object):
 
     def generate_spn(self):
         root_scope = Scope(0, 0, self.x_size, self.y_size)
-        self.root = Sum(root_scope)
+        self.roots = [Sum(root_scope)]
 
         for y in range(self.y_size):
             for x in range(self.x_size):
                 child_leaf = PixelLeaf(x, y)
-                self.root.children.append(child_leaf)
+                self.roots[0].children.append(child_leaf)
 
 class GraphSPN(object):
     def __init__(self):
-        self.root = None
+        self.roots = []
 
     def print_stat(self):
         self.traverse_by_level()
 
     def traverse_by_level(self):
-        q = deque([self.root])
+        q = deque(self.roots)
 
         level = 0
         total_nodes = 0
@@ -210,7 +210,7 @@ class ConvSPN(GraphSPN):
 
     def generate_spn(self):
         root_scope = Scope(0, 0, self.x_size, self.y_size)
-        self.root = self.generate_sum(root_scope, 0)
+        self.roots = [self.generate_sum(root_scope, 0)]
 
     def generate_leaf(self, scope, depth):
         if scope.id in self.cached_leaf:
@@ -398,7 +398,7 @@ class ConvSPN(GraphSPN):
         '''
         Traverse the SPN as if subtree sharing isn't implemented. This would take too long on large SPNs.
         '''
-        q = deque([self.root])
+        q = deque(self.roots)
 
         level = 0
         while q:
@@ -472,7 +472,7 @@ class MultiChannelConvSPN(GraphSPN):
         3. Connect separate ConvSPN's sum node
         '''
         root_scope = Scope(0, 0, self.x_size, self.y_size)
-        self.root = Sum(root_scope)
+        self.roots = [Sum(root_scope)]
 
         channels = []
         for i in range(self.num_channels):
@@ -492,10 +492,11 @@ class MultiChannelConvSPN(GraphSPN):
 
         # Set channels as root's child and update channel's depth.
         for channel in channels:
-            self.root.children.extend(channel.root.children)
+            for root in self.roots:
+                root.children.extend(channel.roots[0].children)
 
     def populate_cache_from_spn(self, spn):
-        q = deque([spn.root])
+        q = deque(spn.roots)
         visited = {}
         while q:
             level_size = len(q)
@@ -519,7 +520,7 @@ class MultiChannelConvSPN(GraphSPN):
                     visited[v] = True
 
     def add_interchannel_connection(self, spn):
-        q = deque([spn.root])
+        q = deque(spn.roots)
         visited = {}
         while q:
             level_size = len(q)
