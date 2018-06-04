@@ -266,12 +266,18 @@ class Network(torch.nn.Module):
         flattened_indices = self.var(_edges.flattened_indices)
         weights = self.parameter(_edges.connection_weights, requires_grad=True)
 
+        _edges.flattened_indices = flattened_indices
+        _edges.connection_weights = weights
+
         parameters.add_param(weights, _edges.sum_weight_hook)
 
         return _edges
 
     def AddSparseProductEdges(self, lower, upper, mask_matrix):
         _edges = edges.SparseProductEdges(lower, upper, mask_matrix)
+
+        _edges.flattened_indices = self.var(_edges.flattened_indices)
+
         upper.child_edges.append(_edges)
         lower.parent_edges.append(_edges)
 
@@ -406,15 +412,7 @@ class Network(torch.nn.Module):
 
         log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
 
-        #print( log_p_tilde)
-        #print(log_Z)
-
         J = torch.sum(- log_p_tilde + log_Z) #  negative log-likelihood
-
-        #print('log p_tilder', log_p_tilde)
-        #print('log z',        log_Z)
-        #print('diff',         log_p_tilde - log_Z)
-        #print('np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() )', np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() ))
 
         if grad:
             J.backward()

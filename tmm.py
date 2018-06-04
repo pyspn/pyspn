@@ -18,7 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
 
 tspn = None
 
@@ -104,7 +104,6 @@ class TrainedConvSPN(torch.nn.Module):
             if i % batch == 0 or i == num_sample - 1:
                 print("Total loss: " + str(i) + " " + str(total_loss[0][0].data))
 
-                #pdb.set_trace()
                 if np.isnan(total_loss[0][0].data.cpu().numpy()):
                     return
                 total_loss = 0
@@ -115,7 +114,7 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_discriminatively(self, num_sample_per_digit):
-        # opt = optim.Adam( self.parameters() , lr=.003)
+        opt = optim.Adam( self.parameters() , lr=.003)
         self.zero_grad()
 
         batch = 10
@@ -138,51 +137,62 @@ class TrainedConvSPN(torch.nn.Module):
 
                 loss = self.compute_total_loss(sample_digit, per_network_loss)
 
-                loss.backward()
                 total_loss += loss
                 self.examples_trained += batch_end - batch_start
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
+
+            total_loss.backward()
 
             if self.examples_trained < num_sample:
                 num_trained_iter = self.examples_trained - prev_training_count
                 print("Total loss: " + str(self.examples_trained / len(self.digits)) + " " + str(total_loss[0][0].data / num_trained_iter))
 
-                if np.isnan(total_loss[0][0].data.cpu().numpy()):
-                    return
+                #if np.isnan(total_loss[0][0].data.cpu().numpy()):
+                #    return
                 total_loss = 0
-                # opt.step()
-                # self.zero_grad()
-                # self.shared_parameters.proj()
+                opt.step()
+                self.zero_grad()
+                self.shared_parameters.proj()
 
 def load_model(filename):
     pass
 
 def train_spn():
     print("Training SPN")
-    tspn.train_discriminatively(100)
+    tspn.train_discriminatively(600)
+
+start = None
+end = None
+cprof = None
+def cprofile_start():
+    global cprof, start
+    start = time.time()
+    cprof = cProfile.Profile()
+    cprof.enable()
+
+def cprofile_end(filename):
+    global cprof, start, end
+    cprof.disable()
+    end = time.time()
+    cprof.dump_stats(filename)
+    print("Duration: " + str(end - start) + " s")
 
 def main():
     global tspn
-    digits_to_train = [7, 8]
+    #digits_to_train = [5,6,7,8,9]
+    digits_to_train = [0,1,2,3,4,5,6,7,8,9]
     print("Creating SPN")
 
     tspn = TrainedConvSPN(digits_to_train)
-    # cProfile.run('train_spn()')
-    # pr = cProfile.Profile()
-    # pr.enable()
-    start = time.time()
+    cprofile_start()
     train_spn()
-    # pr.disable()
-    # pr.dump_stats('tmm.cprof')
-    end = time.time()
-    print("Duration: " + str(end - start))
-
+    cprofile_end("tmm_1.cprof")
     print("Done")
     # start = time.time()
     # tspn.train_discriminatively(10)
     # end = time.time()
     # print("Duration: " + str(end - start))
-    # tspn.save_model('mmcspn_' + str(digits_to_train).replace(" ", ""))
+    tspn.save_model('mmcspn_' + str(digits_to_train).replace(" ", ""))
 
     # pdb.set_trace()
 

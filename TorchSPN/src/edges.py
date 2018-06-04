@@ -27,11 +27,8 @@ class SparseProductEdges():
             buffer = [new_idx[-1]] * (max_length - len(id))
             new_idx.extend(buffer)
 
-        new_idx = torch.tensor(new_idx)
-        part_lg = len(idx)
-
-        self.flattened_indices = new_idx
-        self.dim = (part_lg, max_length)
+        self.flattened_indices = torch.LongTensor(new_idx)
+        self.dim = (len(idx), max_length)
 
     def get_sparse_idx(self, mask_matrix):
         indices = []
@@ -41,12 +38,9 @@ class SparseProductEdges():
 
         for c in range(num_cols):
             col_idx = []
-            col_wg = []
             for r in range(num_rows):
                 if mask_matrix[r][c]:
                     col_idx.append(r)
-            col_idx =  torch.tensor(col_idx)
-            col_wg = torch.FloatTensor(col_wg)
 
             indices.append(col_idx)
 
@@ -82,12 +76,11 @@ class SparseSumEdges():
             buffer_wg = [0] * (max_length - len(wg))
             new_weight.extend(buffer_wg)
 
-        new_idx = torch.tensor(new_idx)
-        new_weight = torch.FloatTensor(new_weight)
+        new_weight = np.array(new_weight, dtype='float32')
         part_lg = len(idx)
 
-        self.flattened_indices = new_idx
-        self.connection_weights = new_weight
+        self.flattened_indices = torch.LongTensor(new_idx)
+        self.connection_weights = torch.from_numpy(new_weight)
         self.dim = (part_lg, max_length)
 
     def get_sparse_idx_wgt(self, mask_matrix, weight_matrix):
@@ -104,8 +97,6 @@ class SparseSumEdges():
                 if mask_matrix[r][c]:
                     col_idx.append(r)
                     col_wg.append(weight_matrix[r][c])
-            col_idx =  torch.tensor(col_idx)
-            col_wg = torch.FloatTensor(col_wg)
 
             indices.append(col_idx)
             sparse_weights.append(col_wg)
