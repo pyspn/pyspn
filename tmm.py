@@ -18,7 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('mnist/dataset/train_mnist_16.csv', delimiter=',')
 
 tspn = None
 
@@ -42,33 +42,28 @@ class TrainedConvSPN(torch.nn.Module):
         # number of examples trained on the last epoch
         self.examples_trained = 0
         self.num_epochs = 0
-        self.networks = {}
+        self.network = None
 
         self.generate_network()
 
     def generate_network(self):
         self.shared_parameters = param.Param()
 
-        for digit in self.digits:
-            structure = MultiChannelConvSPN(16, 16, 4, 2, 10)
-            network = MatrixSPN(
-                structure,
-                self.shared_parameters,
-                is_cuda=cuda.is_available())
-            self.networks[digit] = network
+        self.index_by_digits = {}
+        for i, digit in enumerate(self.digits):
+            self.index_by_digits[digit] = i
+
+        structure = MultiChannelConvSPN(16, 16, 4, 2, 10, len(self.digits))
+        self.network = MatrixSPN(
+            structure,
+            self.shared_parameters,
+            is_cuda=cuda.is_available())
 
         self.shared_parameters.register(self)
         self.shared_parameters.proj()
 
     def save_model(self, filename):
         pickle.dump(self, open(filename, 'wb'))
-
-    def loss_for_digit(self, digit, input):
-        network = self.networks[digit]
-        (val_dict, cond_mask_dict) = network.get_mapped_input_dict(np.array([ input ]))
-        loss = network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
-
-        return loss
 
     def compute_total_loss(self, sample_digit, per_network_loss):
         correct_nll= per_network_loss[sample_digit]
@@ -82,6 +77,10 @@ class TrainedConvSPN(torch.nn.Module):
                 loss += class_loss
 
         return torch.sum(loss)
+
+    def compute_loss_from_prob(self, sample_digit, prob):
+        digit_index = self.index_by_digits[sample_digit]
+        return torch.sum(prob[digit_index])
 
     def train_generatively(self, num_sample):
         opt = optim.Adam( self.parameters() , lr=.03, weight_decay=0.01)
@@ -131,24 +130,22 @@ class TrainedConvSPN(torch.nn.Module):
                 batch_end = min(batch_start + batch, num_data_on_digit)
                 input = np.tile(segmented_data[sample_digit][batch_start:batch_end], 10)
 
-                per_network_loss = {}
-                for digit in self.digits:
-                    per_network_loss[digit] = self.loss_for_digit(digit, input)
+                (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input ]))
+                prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
-                loss = self.compute_total_loss(sample_digit, per_network_loss)
+                loss = self.compute_loss_from_prob(sample_digit, prob)
 
                 total_loss += loss
+
                 self.examples_trained += batch_end - batch_start
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
 
-            total_loss.backward()
+            total_loss.backward(retain_graph=True)
 
             if self.examples_trained < num_sample:
                 num_trained_iter = self.examples_trained - prev_training_count
                 print("Total loss: " + str(self.examples_trained / len(self.digits)) + " " + str(total_loss[0][0].data / num_trained_iter))
 
-                #if np.isnan(total_loss[0][0].data.cpu().numpy()):
-                #    return
                 total_loss = 0
                 opt.step()
                 self.zero_grad()

@@ -420,7 +420,7 @@ class ConvSPN(GraphSPN):
 
 
 class MultiChannelConvSPN(GraphSPN):
-    def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, num_channels):
+    def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, num_channels, num_out):
         super(MultiChannelConvSPN, self).__init__()
 
         self.x_size = x_size
@@ -428,6 +428,7 @@ class MultiChannelConvSPN(GraphSPN):
         self.sum_shifts = sum_shifts
         self.prd_subdivs = prd_subdivs
         self.num_channels = num_channels
+        self.num_out = num_out
 
         self.cached_prd = defaultdict(list)
         self.cached_leaf = defaultdict(list)
@@ -472,7 +473,9 @@ class MultiChannelConvSPN(GraphSPN):
         3. Connect separate ConvSPN's sum node
         '''
         root_scope = Scope(0, 0, self.x_size, self.y_size)
-        self.roots = [Sum(root_scope)]
+        self.roots = []
+        for i in range(self.num_out):
+            self.roots.append(Sum(root_scope))
 
         channels = []
         for i in range(self.num_channels):
