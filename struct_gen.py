@@ -156,7 +156,7 @@ class GraphSPN(object):
             level_size = len(q)
             node_count = 0
             edge_count = 0
-
+            
             level_type = None
             while level_size:
                 u = q.popleft()
@@ -494,10 +494,9 @@ class MultiChannelConvSPN(GraphSPN):
             self.add_interchannel_connection(channel)
 
         # Set channels as root's child and update channel's depth.
-        for channel in channels:
-            for root in self.roots:
-                root.children.extend(channel.roots[0].children)
-
+        for root in self.roots:
+            root.children.extend(channel.roots[0].children) # all channel's root have identical children
+ 
     def populate_cache_from_spn(self, spn):
         q = deque(spn.roots)
         visited = {}

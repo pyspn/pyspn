@@ -58,8 +58,9 @@ class MatrixSPN(network.Network):
         return (val_dict, cond_mask_dict)
 
     def initialize_weights_from_mask(self, mask):
-        weights = np.random.normal(1, 0.2, mask.shape).astype('float32')
-        return weights.clip(min=0.5,max=1.5)
+        weights = np.random.uniform(10, 1000, mask.shape).astype('float32')
+        
+        return weights
 
     def generate_multinomial_leaves(self, metadata):
         num_leaves = metadata.num_nodes_by_level[-1]
@@ -85,7 +86,7 @@ class MatrixSPN(network.Network):
         num_leaves = metadata.num_nodes_by_level[-1]
 
         mean = np.random.uniform(-0.5, 0.5, num_leaves).astype('float32')
-        std = np.random.uniform(0.006, 5, num_leaves).astype('float32')
+        std = np.random.uniform(0.006, 1, num_leaves).astype('float32')
 
         leaf = self.AddGaussianNodes(
             mean,

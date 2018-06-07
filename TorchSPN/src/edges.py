@@ -2,6 +2,7 @@
 
 import torch
 import numpy as np
+import pdb
 
 EPSILON = 0.00001
 
@@ -104,6 +105,9 @@ class SparseSumEdges():
         return (indices, sparse_weights)
 
     def sum_weight_hook(self):
+        if self.connection_weights.size()[0] == 6400:
+            #pdb.set_trace()
+            pass
         self.connection_weights = self.connection_weights.clamp(min=EPSILON)
 
 class ProductEdges():
@@ -140,4 +144,8 @@ class SumEdges():
         self.mask  = mask
 
     def sum_weight_hook(self):
+        if self.weights.size()[0] == 30:
+            #pdb.set_trace()
+            pass
+
         self.weights.data = self.weights.data.clamp(min=EPSILON)

@@ -12,12 +12,13 @@ from collections import defaultdict, deque
 from struct_to_spn import *
 from timeit import default_timer as timer
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from TorchSPN.src import network, param, nodes
+#sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+#from TorchSPN.src import network, param, nodes
+from struct_to_spn import MatrixSPN
 from tmm import *
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist/dataset/test_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
 
 def segment_data():
     segmented_data = []
@@ -32,48 +33,42 @@ segmented_data = segment_data()
 print("Dataset loaded!")
 
 def compute_prob(model, x):
-    (val_dict, cond_mask_dict) = model.get_mapped_input_dict(np.array([x]))
-    loss = model.ComputeProbability(
+    (val_dict, cond_mask_dict) = model.network.get_mapped_input_dict(np.array([x]))
+    loss = model.network.ComputeTMMLoss(
             val_dict=val_dict,
-            cond_mask_dict=cond_mask_dict,
-            grad=False,
-            log=True)
+            cond_mask_dict=cond_mask_dict)
     return loss
 
 def predict(model, x):
-    losses = []
-    for digit in model.digits:
-        network = model.networks[digit]
-        loss = compute_prob(network, x)
-        losses.append(loss)
+    loss = compute_prob(model, x).data.cpu().numpy()
 
-    losses = np.array(losses)
-    prediction_index = np.argmax(losses)
+    prediction_index = np.argmin(loss)
     predicted_digit = model.digits[prediction_index]
     return predicted_digit
 
-model = pickle.load(open('mmcspn_[0,1,2,3,4,5,6,7,8,9]', 'rb'))
+def main():
 
-num_tests = 50
-error = 0
-total_data = 0
-errors = defaultdict(int)
-for i in range(num_tests):
-    print("Iteration " + str(i) + ": " + str(error))
-    for digit in model.digits:
-        x = np.array([ np.tile(segmented_data[digit][i], 10) ] )
-        prediction = predict(model, x)
-        total_data += 1
-        if prediction != digit:
-            errors[digit] += 1
-            error += 1
+    model = pickle.load(open('big45', 'rb'))
+    num_tests = 50
+    error = 0
+    total_data = 0
+    errors = defaultdict(int)
+    for i in range(num_tests):
+        print("Iteration " + str(i) + ": " + str(error))
+        for digit in model.digits:
+            x = np.array([ np.tile(segmented_data[digit][i], 100) ] )
+            prediction = predict(model, x)
+            total_data += 1
+            if prediction != digit:
+                errors[digit] += 1
+                error += 1
 
-accuracy = 1 - error/total_data
-print("Accuracy: " + str(accuracy * 100) + "%")
-print("Error " + str(error))
-print("Detail " + str(errors))
+    accuracy = 1 - error/total_data
+    print("Accuracy: " + str(accuracy * 100) + "%")
+    print("Error " + str(error))
+    print("Detail " + str(errors))
 
-pdb.set_trace()
+    pdb.set_trace()
 
 #num_tests = 100
 #error = 0
@@ -85,4 +80,5 @@ pdb.set_trace()
 #        if (model.digit == digit) != y_pred:
 #            error += 1
 
-pdb.set_trace()
+if __name__ == '__main__':
+    main()

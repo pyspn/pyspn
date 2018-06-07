@@ -18,7 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('mnist/dataset/train_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
 
 tspn = None
 
@@ -53,7 +53,7 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        structure = MultiChannelConvSPN(16, 16, 4, 2, 10, len(self.digits))
+        structure = MultiChannelConvSPN(16, 16, 4, 2, 30, len(self.digits))
         self.network = MatrixSPN(
             structure,
             self.shared_parameters,
@@ -78,15 +78,35 @@ class TrainedConvSPN(torch.nn.Module):
 
         return torch.sum(loss)
 
+    def compute_loss_from_prob_plain(self, sample_digit, prob):
+        digit_index = self.index_by_digits[sample_digit]
+        return torch.sum(prob[:, digit_index])
+
+    def compute_loss_cross_entropy(self, sample_digit, prob):
+        digit_index = self.index_by_digits[sample_digit]
+        correct_nll = prob[:, digit_index]
+        divisor = torch.sum(prob, 1)
+
+        return torch.sum(correct_nll / divisor)
+
     def compute_loss_from_prob(self, sample_digit, prob):
         digit_index = self.index_by_digits[sample_digit]
-        return torch.sum(prob[digit_index])
+        correct_nll = prob[:, digit_index]
+
+        loss = 0
+        margin = 0 * len(self.digits)
+        for digit in self.digits:
+            if digit != sample_digit:
+                other_nll = prob[:, self.index_by_digits[digit]]
+                loss += (margin + correct_nll - other_nll).clamp(min=0)
+
+        return torch.sum(loss)
 
     def train_generatively(self, num_sample):
         opt = optim.Adam( self.parameters() , lr=.03, weight_decay=0.01)
         self.zero_grad()
 
-        batch = 10
+        batch = 8
         total_loss = 0
 
         i = 0
@@ -105,6 +125,7 @@ class TrainedConvSPN(torch.nn.Module):
 
                 if np.isnan(total_loss[0][0].data.cpu().numpy()):
                     return
+
                 total_loss = 0
                 opt.step()
                 self.zero_grad()
@@ -113,13 +134,18 @@ class TrainedConvSPN(torch.nn.Module):
             i += 1
 
     def train_discriminatively(self, num_sample_per_digit):
-        opt = optim.Adam( self.parameters() , lr=.003)
+        opt = optim.Adam( self.parameters() , lr=.03)
+        pm = list(self.parameters())
+        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
+        #opt = optim.SGD( self.parameters() , lr=.008, momentum=0.9) #, momentum=.0005)
         self.zero_grad()
 
-        batch = 10
+        batch = 40
         total_loss = 0
         num_sample = num_sample_per_digit * len(self.digits)
 
+        error = 0
+        sample_ct = 0
         batch_start_pts = { digit:0 for digit in self.digits }
         while self.examples_trained < num_sample:
             prev_training_count = self.examples_trained
@@ -128,35 +154,43 @@ class TrainedConvSPN(torch.nn.Module):
                 num_data_on_digit = data_on_digit.shape[0]
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
-                input = np.tile(segmented_data[sample_digit][batch_start:batch_end], 10)
+                input = np.tile(segmented_data[sample_digit][batch_start:batch_end], 30)
 
                 (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input ]))
                 prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
-                loss = self.compute_loss_from_prob(sample_digit, prob)
+                choice = torch.min(prob, 1)[1]
+                sample_ct += len(prob)
 
+                error += torch.sum( choice != self.index_by_digits[sample_digit] ).data.cpu().numpy()[0]
+                loss = self.compute_loss_from_prob(sample_digit, prob)
                 total_loss += loss
 
                 self.examples_trained += batch_end - batch_start
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
 
-            total_loss.backward(retain_graph=True)
-
             if self.examples_trained < num_sample:
                 num_trained_iter = self.examples_trained - prev_training_count
-                print("Total loss: " + str(self.examples_trained / len(self.digits)) + " " + str(total_loss[0][0].data / num_trained_iter))
+                
+                print("Error: " + str(error) + "\nTotal loss: " + str(self.examples_trained / len(self.digits)) + " " + str(total_loss[0][0].data / num_trained_iter))
 
-                total_loss = 0
+                #scheduler.step(error)
+                error = 0
+                sample_ct = 0
+                total_loss.backward()
                 opt.step()
                 self.zero_grad()
                 self.shared_parameters.proj()
+
+
+                total_loss = 0
 
 def load_model(filename):
     pass
 
 def train_spn():
     print("Training SPN")
-    tspn.train_discriminatively(600)
+    tspn.train_discriminatively(25 * 6000)
 
 start = None
 end = None
@@ -176,22 +210,19 @@ def cprofile_end(filename):
 
 def main():
     global tspn
-    #digits_to_train = [5,6,7,8,9]
+    #digits_to_train = [8,9]
     digits_to_train = [0,1,2,3,4,5,6,7,8,9]
     print("Creating SPN")
 
     tspn = TrainedConvSPN(digits_to_train)
     cprofile_start()
     train_spn()
-    cprofile_end("tmm_1.cprof")
+    cprofile_end("tmm.cprof")
     print("Done")
-    # start = time.time()
-    # tspn.train_discriminatively(10)
-    # end = time.time()
-    # print("Duration: " + str(end - start))
-    tspn.save_model('mmcspn_' + str(digits_to_train).replace(" ", ""))
 
-    # pdb.set_trace()
+    tspn.save_model('25ch_x_mmcspn_' + str(digits_to_train).replace(" ", ""))
+
+    pdb.set_trace()
 
 if __name__ == '__main__':
     main()
