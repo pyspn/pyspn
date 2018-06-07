@@ -28,7 +28,14 @@ def segment_data():
         i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
         segmented_data.append(i_examples)
 
-    return segmented_data
+    min_count = min([arr.shape[0] for arr in segmented_data])
+
+    segmented_tensor = np.zeros((10, min_count, 256))
+
+    for i in range(10):
+        segmented_tensor[i] = segmented_data[i][:min_count]
+
+    return segmented_tensor
 
 print("Segmenting...")
 segmented_data = segment_data()
@@ -53,9 +60,9 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        structure = MultiChannelConvSPN(16, 16, 4, 2, 30, len(self.digits))
+        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 1, len(self.digits))
         self.network = MatrixSPN(
-            structure,
+            self.structure,
             self.shared_parameters,
             is_cuda=cuda.is_available())
 
@@ -88,6 +95,16 @@ class TrainedConvSPN(torch.nn.Module):
         divisor = torch.sum(prob, 1)
 
         return torch.sum(correct_nll / divisor)
+
+    def compute_batch_loss_from_prob(self, batch_count_by_digit, prob):
+        loss = 0
+        batch_start = 0
+        for (i, batch_count) in enumerate(batch_count_by_digit):
+            digit = self.digits[i]
+            batch_end = batch_start + batch_count
+            loss += self.compute_loss_from_prob(digit, prob[batch_start:batch_end])
+
+        return loss
 
     def compute_loss_from_prob(self, sample_digit, prob):
         digit_index = self.index_by_digits[sample_digit]
@@ -149,41 +166,38 @@ class TrainedConvSPN(torch.nn.Module):
         batch_start_pts = { digit:0 for digit in self.digits }
         while self.examples_trained < num_sample:
             prev_training_count = self.examples_trained
+
+            batch_count_by_digit = []
+            input_by_digit = []
             for sample_digit in self.digits:
                 data_on_digit = segmented_data[sample_digit]
                 num_data_on_digit = data_on_digit.shape[0]
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
-                input = np.tile(segmented_data[sample_digit][batch_start:batch_end], 30)
-
-                (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input ]))
-                prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
-
-                choice = torch.min(prob, 1)[1]
-                sample_ct += len(prob)
-
-                error += torch.sum( choice != self.index_by_digits[sample_digit] ).data.cpu().numpy()[0]
-                loss = self.compute_loss_from_prob(sample_digit, prob)
-                total_loss += loss
-
-                self.examples_trained += batch_end - batch_start
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
 
-            if self.examples_trained < num_sample:
-                num_trained_iter = self.examples_trained - prev_training_count
-                
-                print("Error: " + str(error) + "\nTotal loss: " + str(self.examples_trained / len(self.digits)) + " " + str(total_loss[0][0].data / num_trained_iter))
+                input = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.structure.num_channels)
+                input_by_digit.append(input)
 
-                #scheduler.step(error)
-                error = 0
-                sample_ct = 0
-                total_loss.backward()
-                opt.step()
-                self.zero_grad()
-                self.shared_parameters.proj()
+                batch_count = batch_end - batch_end + 1
+                batch_count_by_digit.append(batch_count)
 
+            input = np.concatenate(input_by_digit)
+            self.examples_trained += sum(batch_count_by_digit)
 
-                total_loss = 0
+            (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input ]))
+            prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
+
+            loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
+            loss.backward()
+
+            num_trained_iter = self.examples_trained - prev_training_count
+            print("Total loss: " + str(self.examples_trained / len(self.digits)) + " " + str(loss[0][0].data / num_trained_iter))
+
+            opt.step()
+            self.shared_parameters.proj()
+            self.zero_grad()
+            loss = 0
 
 def load_model(filename):
     pass
