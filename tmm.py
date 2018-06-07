@@ -150,6 +150,25 @@ class TrainedConvSPN(torch.nn.Module):
 
             i += 1
 
+    def compute_batch_training_error_from_prob(self, batch_count_by_digit, prob):
+        choice = torch.min(prob, 1)[1]
+        batch_size = len(prob)
+
+        prob_data = prob.data.cpu().numpy()
+        choice = np.argmin(prob_data, 1)
+
+        error = 0
+        batch_start = 0
+        for i in range(len(self.digits)):
+            digit = self.digits[i]
+            batch_count = batch_count_by_digit[i]
+            batch_end = batch_start + batch_count
+
+            error += torch.sum( choice[batch_start:batch_end] != i )
+            batch_end = batch_start
+
+        return error
+
     def train_discriminatively(self, num_sample_per_digit):
         opt = optim.Adam( self.parameters() , lr=.03)
         pm = list(self.parameters())
@@ -174,11 +193,11 @@ class TrainedConvSPN(torch.nn.Module):
                 num_data_on_digit = data_on_digit.shape[0]
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
-                batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
 
                 input = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.structure.num_channels)
                 input_by_digit.append(input)
 
+                batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
                 batch_count = batch_end - batch_end + 1
                 batch_count_by_digit.append(batch_count)
 
@@ -191,13 +210,15 @@ class TrainedConvSPN(torch.nn.Module):
             loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
             loss.backward()
 
+            training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
+
             num_trained_iter = self.examples_trained - prev_training_count
-            print("Total loss: " + str(self.examples_trained / len(self.digits)) + " " + str(loss[0][0].data / num_trained_iter))
+            print("Error: " + str(training_error) +  "\nTotal loss: " + str(self.examples_trained / len(self.digits)) + " " + str(loss[0][0].data / num_trained_iter))
 
             opt.step()
             self.shared_parameters.proj()
-            self.zero_grad()
             loss = 0
+            self.zero_grad()
 
 def load_model(filename):
     pass
