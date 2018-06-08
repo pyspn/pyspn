@@ -53,6 +53,8 @@ class TrainedConvSPN(torch.nn.Module):
         self.num_epochs = 0
         self.network = None
 
+        self.perf_data = []
+
         self.generate_network()
 
     def generate_network(self):
@@ -62,7 +64,7 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(self.digits))
+        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 10, len(self.digits))
         self.network = MatrixSPN(
             self.structure,
             self.shared_parameters,
@@ -173,7 +175,7 @@ class TrainedConvSPN(torch.nn.Module):
         return error/batch_size
 
     def validate_network(self):
-        validation_size = 100
+        validation_size = 20
         batch_count_by_digit = []
         input_by_digit = []
         for sample_digit in self.digits:
@@ -188,12 +190,16 @@ class TrainedConvSPN(torch.nn.Module):
         input_batch = np.concatenate(input_by_digit)
 
         (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input_batch ]))
-        prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
+        prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict, debug=True)
 
-        loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
+        loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob).data.cpu().numpy() / (validation_size * len(self.digits))
         training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
 
-        return (training_error, loss)
+        res = (float(training_error), float(loss))
+
+        del prob, loss, training_error
+
+        return res
 
     def train_discriminatively(self, num_sample_per_digit):
         opt = optim.Adam( self.parameters() , lr=.01)
@@ -202,7 +208,7 @@ class TrainedConvSPN(torch.nn.Module):
         #opt = optim.SGD( self.parameters() , lr=.008, momentum=0.9) #, momentum=.0005)
         self.zero_grad()
 
-        batch = 20
+        batch = 32
         total_loss = 0
         num_sample = num_sample_per_digit * len(self.digits)
 
@@ -238,7 +244,7 @@ class TrainedConvSPN(torch.nn.Module):
             prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
             loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
-            loss.backward(retain_graph=True)
+            loss.backward()
 
             training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
 
@@ -250,14 +256,18 @@ class TrainedConvSPN(torch.nn.Module):
             if self.examples_trained - last_print > 1000:
                 last_print = self.examples_trained
 
+                training_loss = loss[0][0][0].data.cpu().numpy() / num_trained_iter
+
                 if self.examples_trained - last_validation > 60000:
                     last_validation = self.examples_trained
-                    print("Validating network " + str(self.examples_trained / 60000))
+                    print("Validating network " + str(int(self.examples_trained / 60000)))
                     (validation_error, validation_loss) = self.validate_network()
 
-                    print("Validation Errpr: " + str(validation_error) + "\nTraining loss: " + str(validation_loss))
+                    pd = [float(training_error), float(training_loss), float(validation_error), float(validation_loss)]
+                    self.perf_data.append(pd)
+                    print("Validation Error: " + str(validation_error) + "\nTraining loss: " + str(validation_loss))
 
-                print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.examples_trained / len(self.digits)) + " " + str(loss[0][0].data / num_trained_iter))
+                print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.examples_trained / len(self.digits)) + " " + str(training_loss))
 
             loss = 0
             self.zero_grad()
@@ -298,7 +308,7 @@ def main():
     cprofile_end("tmm.cprof")
     print("Done")
 
-    tspn.save_model('ov2k_1_40_x_mmcspn_' + str(digits_to_train).replace(" ", ""))
+    tspn.save_model('10ch_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()
 

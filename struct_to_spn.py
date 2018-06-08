@@ -105,7 +105,7 @@ class MatrixSPN(network.Network):
             grad=False,
             log=False)
 
-    def ComputeTMMLoss(self, val_dict=None, cond_mask_dict={}):
+    def ComputeTMMLoss(self, val_dict=None, cond_mask_dict={}, debug=False):
         log_p_tilde = self.ComputeLogUnnormalized(val_dict)
 
         marginalize_dict = {}
@@ -115,6 +115,10 @@ class MatrixSPN(network.Network):
         log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
 
         J = - log_p_tilde + log_Z #  negative log-likelihood
+
+        if debug:
+            del log_Z, log_p_tilde
+            return J
 
         return J
 
@@ -185,13 +189,3 @@ class MatrixSPN(network.Network):
         print("Done")
         return
 
-def main():
-    structure = MultiChannelConvSPN(16, 16, 1, 2, 10)
-    shared_parameters = param.Param()
-    network = MatrixSPN(
-        structure,
-        shared_parameters,
-        is_cuda=False)
-
-if __name__=='__main__':
-    main()
