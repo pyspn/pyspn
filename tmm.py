@@ -44,7 +44,7 @@ test_data = segment_data(test_raw)
 print("Dataset loaded!")
 
 class TrainedConvSPN(torch.nn.Module):
-    def __init__(self, digits):
+    def __init__(self, digits, perf_filename):
         super(TrainedConvSPN, self).__init__()
         self.digits = digits
 
@@ -54,6 +54,7 @@ class TrainedConvSPN(torch.nn.Module):
         self.network = None
 
         self.perf_data = []
+        self.perf_filename = perf_filename
 
         self.generate_network()
 
@@ -64,7 +65,7 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 10, len(self.digits))
+        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(self.digits))
         self.network = MatrixSPN(
             self.structure,
             self.shared_parameters,
@@ -265,6 +266,8 @@ class TrainedConvSPN(torch.nn.Module):
 
                     pd = [float(training_error), float(training_loss), float(validation_error), float(validation_loss)]
                     self.perf_data.append(pd)
+
+                    np.savetxt(self.perf_filename, np.array(self.perf_data))
                     print("Validation Error: " + str(validation_error) + "\nTraining loss: " + str(validation_loss))
 
                 print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.examples_trained / len(self.digits)) + " " + str(training_loss))
@@ -302,13 +305,13 @@ def main():
 
     print("Creating SPN")
 
-    tspn = TrainedConvSPN(digits_to_train)
+    tspn = TrainedConvSPN(digits_to_train, '25ch.perf')
     cprofile_start()
     train_spn()
     cprofile_end("tmm.cprof")
     print("Done")
 
-    tspn.save_model('10ch_' + str(digits_to_train).replace(" ", ""))
+    tspn.save_model('25ch_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()
 
