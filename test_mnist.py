@@ -47,8 +47,7 @@ def predict(model, x):
     return predicted_digit
 
 def main():
-
-    model = pickle.load(open('big45', 'rb'))
+    model = pickle.load(open('25_1_40_x_mmcspn_[0,1,2,3,4,5,6,7,8,9]', 'rb'))
     num_tests = 50
     error = 0
     total_data = 0
@@ -56,7 +55,7 @@ def main():
     for i in range(num_tests):
         print("Iteration " + str(i) + ": " + str(error))
         for digit in model.digits:
-            x = np.array([ np.tile(segmented_data[digit][i], 100) ] )
+            x = np.array([ np.tile(segmented_data[digit][i], 40) ] )
             prediction = predict(model, x)
             total_data += 1
             if prediction != digit:

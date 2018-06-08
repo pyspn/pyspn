@@ -62,7 +62,7 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 10, len(self.digits))
+        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(self.digits))
         self.network = MatrixSPN(
             self.structure,
             self.shared_parameters,
@@ -195,15 +195,14 @@ class TrainedConvSPN(torch.nn.Module):
 
         return (training_error, loss)
 
-
     def train_discriminatively(self, num_sample_per_digit):
-        opt = optim.Adam( self.parameters() , lr=.03)
+        opt = optim.Adam( self.parameters() , lr=.01)
         pm = list(self.parameters())
         #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
         #opt = optim.SGD( self.parameters() , lr=.008, momentum=0.9) #, momentum=.0005)
         self.zero_grad()
 
-        batch = 40
+        batch = 20
         total_loss = 0
         num_sample = num_sample_per_digit * len(self.digits)
 
@@ -211,6 +210,7 @@ class TrainedConvSPN(torch.nn.Module):
         sample_ct = 0
         last_print = 0
         last_validation = 0
+
         batch_start_pts = { digit:0 for digit in self.digits }
         while self.examples_trained < num_sample:
             prev_training_count = self.examples_trained
@@ -227,7 +227,8 @@ class TrainedConvSPN(torch.nn.Module):
                 input_by_digit.append(input_i)
 
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
-                batch_count = batch_end - batch_start + 1
+                batch_count = batch_end - batch_start
+
                 batch_count_by_digit.append(batch_count)
 
             input_batch = np.concatenate(input_by_digit)
@@ -242,6 +243,7 @@ class TrainedConvSPN(torch.nn.Module):
             training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
 
             num_trained_iter = self.examples_trained - prev_training_count
+
             opt.step()
             self.shared_parameters.proj()
 
@@ -285,8 +287,9 @@ def cprofile_end(filename):
 
 def main():
     global tspn
-    digits_to_train = [8,9]
-    #digits_to_train = [0,1,2,3,4,5,6,7,8,9]
+
+    digits_to_train = [0,1,2,3,4,5,6,7,8,9]
+
     print("Creating SPN")
 
     tspn = TrainedConvSPN(digits_to_train)
@@ -295,7 +298,7 @@ def main():
     cprofile_end("tmm.cprof")
     print("Done")
 
-    tspn.save_model('25ch_x_mmcspn_' + str(digits_to_train).replace(" ", ""))
+    tspn.save_model('ov2k_1_40_x_mmcspn_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()
 
