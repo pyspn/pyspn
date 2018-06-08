@@ -18,14 +18,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 
 print("Loading data set..")
-test_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
+train_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
+test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
 
 tspn = None
 
-def segment_data():
+def segment_data(data):
     segmented_data = []
     for i in range(10):
-        i_examples = (test_raw[test_raw[:,0] == i][:,1:] / 255) - 0.5
+        i_examples = (data[data[:,0] == i][:,1:] / 255) - 0.5
         segmented_data.append(i_examples)
 
     min_count = min([arr.shape[0] for arr in segmented_data])
@@ -38,7 +39,8 @@ def segment_data():
     return segmented_tensor
 
 print("Segmenting...")
-segmented_data = segment_data()
+segmented_data = segment_data(train_raw)
+test_data = segment_data(test_raw)
 print("Dataset loaded!")
 
 class TrainedConvSPN(torch.nn.Module):
@@ -60,7 +62,7 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 1, len(self.digits))
+        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 10, len(self.digits))
         self.network = MatrixSPN(
             self.structure,
             self.shared_parameters,
@@ -103,6 +105,7 @@ class TrainedConvSPN(torch.nn.Module):
             digit = self.digits[i]
             batch_end = batch_start + batch_count
             loss += self.compute_loss_from_prob(digit, prob[batch_start:batch_end])
+            batch_start = batch_end
 
         return loss
 
@@ -164,10 +167,34 @@ class TrainedConvSPN(torch.nn.Module):
             batch_count = batch_count_by_digit[i]
             batch_end = batch_start + batch_count
 
-            error += torch.sum( choice[batch_start:batch_end] != i )
-            batch_end = batch_start
+            error += np.sum( choice[batch_start:batch_end] != i )
+            batch_start = batch_end
 
-        return error
+        return error/batch_size
+
+    def validate_network(self):
+        validation_size = 100
+        batch_count_by_digit = []
+        input_by_digit = []
+        for sample_digit in self.digits:
+            data_on_digit = segmented_data[sample_digit]
+            num_data_on_digit = data_on_digit.shape[0]
+
+            input_i = np.tile(test_data[sample_digit, 0:validation_size], self.structure.num_channels)
+            input_by_digit.append(input_i)
+
+            batch_count_by_digit.append(validation_size)
+
+        input_batch = np.concatenate(input_by_digit)
+
+        (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input_batch ]))
+        prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
+
+        loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
+        training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
+
+        return (training_error, loss)
+
 
     def train_discriminatively(self, num_sample_per_digit):
         opt = optim.Adam( self.parameters() , lr=.03)
@@ -182,6 +209,8 @@ class TrainedConvSPN(torch.nn.Module):
 
         error = 0
         sample_ct = 0
+        last_print = 0
+        last_validation = 0
         batch_start_pts = { digit:0 for digit in self.digits }
         while self.examples_trained < num_sample:
             prev_training_count = self.examples_trained
@@ -194,29 +223,40 @@ class TrainedConvSPN(torch.nn.Module):
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
 
-                input = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.structure.num_channels)
-                input_by_digit.append(input)
+                input_i = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.structure.num_channels)
+                input_by_digit.append(input_i)
 
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
-                batch_count = batch_end - batch_end + 1
+                batch_count = batch_end - batch_start + 1
                 batch_count_by_digit.append(batch_count)
 
-            input = np.concatenate(input_by_digit)
+            input_batch = np.concatenate(input_by_digit)
             self.examples_trained += sum(batch_count_by_digit)
 
-            (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input ]))
+            (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input_batch ]))
             prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
             loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
-            loss.backward()
+            loss.backward(retain_graph=True)
 
             training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
 
             num_trained_iter = self.examples_trained - prev_training_count
-            print("Error: " + str(training_error) +  "\nTotal loss: " + str(self.examples_trained / len(self.digits)) + " " + str(loss[0][0].data / num_trained_iter))
-
             opt.step()
             self.shared_parameters.proj()
+
+            if self.examples_trained - last_print > 1000:
+                last_print = self.examples_trained
+
+                if self.examples_trained - last_validation > 60000:
+                    last_validation = self.examples_trained
+                    print("Validating network " + str(self.examples_trained / 60000))
+                    (validation_error, validation_loss) = self.validate_network()
+
+                    print("Validation Errpr: " + str(validation_error) + "\nTraining loss: " + str(validation_loss))
+
+                print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.examples_trained / len(self.digits)) + " " + str(loss[0][0].data / num_trained_iter))
+
             loss = 0
             self.zero_grad()
 
@@ -245,8 +285,8 @@ def cprofile_end(filename):
 
 def main():
     global tspn
-    #digits_to_train = [8,9]
-    digits_to_train = [0,1,2,3,4,5,6,7,8,9]
+    digits_to_train = [8,9]
+    #digits_to_train = [0,1,2,3,4,5,6,7,8,9]
     print("Creating SPN")
 
     tspn = TrainedConvSPN(digits_to_train)
