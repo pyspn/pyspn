@@ -44,7 +44,7 @@ test_data = segment_data(test_raw)
 print("Dataset loaded!")
 
 class TrainedConvSPN(torch.nn.Module):
-    def __init__(self, digits, perf_filename):
+    def __init__(self, digits, perf_filename, use_cuda=cuda.is_available()):
         super(TrainedConvSPN, self).__init__()
         self.digits = digits
 
@@ -52,6 +52,7 @@ class TrainedConvSPN(torch.nn.Module):
         self.examples_trained = 0
         self.num_epochs = 0
         self.network = None
+        self.use_cuda = use_cuda
 
         self.perf_data = []
         self.perf_filename = perf_filename
@@ -69,7 +70,7 @@ class TrainedConvSPN(torch.nn.Module):
         self.network = MatrixSPN(
             self.structure,
             self.shared_parameters,
-            is_cuda=cuda.is_available())
+            is_cuda=self.use_cuda)
 
         self.shared_parameters.register(self)
         self.shared_parameters.proj()
@@ -92,16 +93,25 @@ class TrainedConvSPN(torch.nn.Module):
 
     def compute_loss_from_prob_plain(self, sample_digit, prob):
         digit_index = self.index_by_digits[sample_digit]
-        return torch.sum(prob[:, digit_index])
+        return torch.sum(-prob[:, digit_index])
 
-    def compute_loss_cross_entropy(self, sample_digit, prob):
-        digit_index = self.index_by_digits[sample_digit]
-        correct_nll = prob[:, digit_index]
-        divisor = torch.sum(prob, 1)
+    def compute_batch_cross_entropy(self, batch_count_by_digit, prob):
+        target = torch.LongTensor( np.repeat( np.arange(len(batch_count_by_digit)), batch_count_by_digit) )
 
-        return torch.sum(correct_nll / divisor)
+        if self.use_cuda:
+            target = target.cuda()
+
+        target = torch.autograd.Variable( target )
+
+        loss_fn = torch.nn.CrossEntropyLoss()
+
+        return loss_fn( -prob, target )
 
     def compute_batch_loss_from_prob(self, batch_count_by_digit, prob):
+        #return self.compute_batch_hinge_loss( batch_count_by_digit, prob )
+        return self.compute_batch_cross_entropy( batch_count_by_digit, prob )
+
+    def compute_batch_hinge_loss(self, batch_count_by_digit, prob):
         loss = 0
         batch_start = 0
         for (i, batch_count) in enumerate(batch_count_by_digit):
@@ -127,6 +137,7 @@ class TrainedConvSPN(torch.nn.Module):
 
     def train_generatively(self, num_sample):
         opt = optim.Adam( self.parameters() , lr=.03, weight_decay=0.01)
+
         self.zero_grad()
 
         batch = 8
@@ -203,10 +214,11 @@ class TrainedConvSPN(torch.nn.Module):
         return res
 
     def train_discriminatively(self, num_sample_per_digit):
-        opt = optim.Adam( self.parameters() , lr=.01)
-        pm = list(self.parameters())
+        opt = optim.Adam( self.parameters() , lr=.005)
+        #pm = list(self.parameters())
         #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
-        #opt = optim.SGD( self.parameters() , lr=.008, momentum=0.9) #, momentum=.0005)
+        #opt = optim.SGD( self.parameters() , lr=.1) #, momentum=.0005)
+        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
         self.zero_grad()
 
         batch = 32
@@ -301,22 +313,31 @@ def cprofile_end(filename):
 def main():
     global tspn
 
+    #digits_to_train = [5,6,7,8,9]
     digits_to_train = [0,1,2,3,4,5,6,7,8,9]
 
     print("Creating SPN")
 
-    tspn = TrainedConvSPN(digits_to_train, '25ch.perf')
+    tspn = TrainedConvSPN(digits_to_train, 'plain_40ch.perf')
     cprofile_start()
     train_spn()
     cprofile_end("tmm.cprof")
     print("Done")
 
-    tspn.save_model('25ch_' + str(digits_to_train).replace(" ", ""))
+    tspn.save_model('plain_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()
 
+def retrain(model_name):
+    model = pickle.load(open(model_name, 'rb'))
+
+    print("Retraining " + model_name)
+    pdb.set_trace()
+
+
 if __name__ == '__main__':
     main()
+    #retrain('m3')
 
 # train_mode = True
 
