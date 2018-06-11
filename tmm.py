@@ -1,6 +1,6 @@
 import torch
-from torch import optim, cuda
 import pdb
+from torch import optim, cuda
 import math
 import csv
 import pdb
@@ -43,20 +43,33 @@ segmented_data = segment_data(train_raw)
 test_data = segment_data(test_raw)
 print("Dataset loaded!")
 
+class Hyperparameter(object):
+    def __init__(self, structure=None, optimizer_constructor=None, loss=None, batch_size=None):
+        self.structure = structure
+        self.optimizer_constructor = optimizer_constructor
+        self.loss = loss
+        self.batch_size = batch_size
+
+class TrainingStatistics(object):
+    def __init__(self):
+        self.data = []
+        self.filename = None
+        self.examples_trained = 0
+
 class TrainedConvSPN(torch.nn.Module):
-    def __init__(self, digits, perf_filename, use_cuda=cuda.is_available()):
+    def __init__(self, digits=None, hyperparameter=None, use_cuda=cuda.is_available()):
         super(TrainedConvSPN, self).__init__()
         self.digits = digits
 
-        # number of examples trained on the last epoch
-        self.examples_trained = 0
-        self.num_epochs = 0
-        self.network = None
         self.use_cuda = use_cuda
 
-        self.perf_data = []
-        self.perf_filename = perf_filename
+        self.hyperparameter = hyperparameter
 
+        self.stats = TrainingStatistics()
+
+        self.network = None
+        self.shared_parameters = None
+        self.optimizer = None
         self.generate_network()
 
     def generate_network(self):
@@ -66,9 +79,8 @@ class TrainedConvSPN(torch.nn.Module):
         for i, digit in enumerate(self.digits):
             self.index_by_digits[digit] = i
 
-        self.structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(self.digits))
         self.network = MatrixSPN(
-            self.structure,
+            self.hyperparameter.structure,
             self.shared_parameters,
             is_cuda=self.use_cuda)
 
@@ -145,7 +157,7 @@ class TrainedConvSPN(torch.nn.Module):
 
         i = 0
         while i < num_sample:
-            self.examples_trained += 1
+            self.stats.examples_trained += 1
             for sample_digit in self.digits:
                 input = np.tile(segmented_data[sample_digit][i:i+1], 10)
 
@@ -194,7 +206,7 @@ class TrainedConvSPN(torch.nn.Module):
             data_on_digit = segmented_data[sample_digit]
             num_data_on_digit = data_on_digit.shape[0]
 
-            input_i = np.tile(test_data[sample_digit, 0:validation_size], self.structure.num_channels)
+            input_i = np.tile(test_data[sample_digit, 0:validation_size], self.hyperparameter.structure.num_channels)
             input_by_digit.append(input_i)
 
             batch_count_by_digit.append(validation_size)
@@ -214,14 +226,12 @@ class TrainedConvSPN(torch.nn.Module):
         return res
 
     def train_discriminatively(self, num_sample_per_digit):
-        opt = optim.Adam( self.parameters() , lr=.005)
-        #pm = list(self.parameters())
-        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
-        #opt = optim.SGD( self.parameters() , lr=.1) #, momentum=.0005)
-        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
+        self.optimizer = self.hyperparameter.optimizer_constructor( self.parameters() )
+
         self.zero_grad()
 
-        batch = 32
+        batch = self.hyperparameter.batch_size
+
         total_loss = 0
         num_sample = num_sample_per_digit * len(self.digits)
 
@@ -231,8 +241,8 @@ class TrainedConvSPN(torch.nn.Module):
         last_validation = 0
 
         batch_start_pts = { digit:0 for digit in self.digits }
-        while self.examples_trained < num_sample:
-            prev_training_count = self.examples_trained
+        while self.stats.examples_trained < num_sample:
+            prev_training_count = self.stats.examples_trained
 
             batch_count_by_digit = []
             input_by_digit = []
@@ -242,7 +252,7 @@ class TrainedConvSPN(torch.nn.Module):
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
 
-                input_i = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.structure.num_channels)
+                input_i = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.hyperparameter.structure.num_channels)
                 input_by_digit.append(input_i)
 
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
@@ -251,38 +261,37 @@ class TrainedConvSPN(torch.nn.Module):
                 batch_count_by_digit.append(batch_count)
 
             input_batch = np.concatenate(input_by_digit)
-            self.examples_trained += sum(batch_count_by_digit)
+            self.stats.examples_trained += sum(batch_count_by_digit)
 
             (val_dict, cond_mask_dict) = self.network.get_mapped_input_dict(np.array([ input_batch ]))
             prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
             loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
-            loss.backward()
+            loss.backward(retain_graph=True)
 
             training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
+            num_trained_iter = self.stats.examples_trained - prev_training_count
 
-            num_trained_iter = self.examples_trained - prev_training_count
-
-            opt.step()
+            self.optimizer.step()
             self.shared_parameters.proj()
 
-            if self.examples_trained - last_print > 1000:
-                last_print = self.examples_trained
+            if self.stats.examples_trained - last_print > 1000:
+                last_print = self.stats.examples_trained
 
                 training_loss = loss[0][0][0].data.cpu().numpy() / num_trained_iter
 
-                if self.examples_trained - last_validation > 60000:
-                    last_validation = self.examples_trained
-                    print("Validating network " + str(int(self.examples_trained / 60000)))
+                if self.stats.examples_trained - last_validation > 6000:
+                    last_validation = self.stats.examples_trained
+                    print("Validating network " + str(int(self.stats.examples_trained / 60000)))
                     (validation_error, validation_loss) = self.validate_network()
 
                     pd = [float(training_error), float(training_loss), float(validation_error), float(validation_loss)]
-                    self.perf_data.append(pd)
+                    self.stats.data.append(pd)
 
-                    np.savetxt(self.perf_filename, np.array(self.perf_data))
-                    print("Validation Error: " + str(validation_error) + "\nTraining loss: " + str(validation_loss))
+                    np.savetxt(self.perf_filename, np.array(self.stats.data))
+                    print("Validation Error: " + str(validation_error) + "\nValidation Loss: " + str(validation_loss))
 
-                print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.examples_trained / len(self.digits)) + " " + str(training_loss))
+                print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.stats.examples_trained / len(self.digits)) + " " + str(training_loss))
 
             loss = 0
             self.zero_grad()
@@ -315,10 +324,16 @@ def main():
 
     #digits_to_train = [5,6,7,8,9]
     digits_to_train = [0,1,2,3,4,5,6,7,8,9]
+    structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(digits_to_train))
+    hyperparameter = Hyperparameter(
+            structure=structure,
+            optimizer_constructor=(lambda param: torch.optim.Adam(param, lr=0.005)),
+            batch_size=32)
 
     print("Creating SPN")
 
-    tspn = TrainedConvSPN(digits_to_train, 'plain_40ch.perf')
+    tspn = TrainedConvSPN(digits=digits_to_train, hyperparameter=hyperparameter)
+
     cprofile_start()
     train_spn()
     cprofile_end("tmm.cprof")
@@ -338,38 +353,3 @@ def retrain(model_name):
 if __name__ == '__main__':
     main()
     #retrain('m3')
-
-# train_mode = True
-
-# if train_mode:
-#     digit_to_train = 3
-#     print("Creating SPN")
-#     tspn = TrainedConvSPN(digit_to_train)
-#     print("Training SPN")
-#     tspn.train(85)
-#
-#     filename = 'neg_spn_3_2'
-#     tspn.save_model(filename)
-
-#############################################################
-
-# model5 = pickle.load(open('spn_5', 'rb'))
-# model6 = pickle.load(open('spn_6', 'rb'))
-#
-# def is_data_5(data):
-#     is_5 = model5.classify_data(data) > model6.classify_data(data)
-#     return is_5
-#
-# num_tests = 10
-# error = 0
-# for test_i in range(num_tests):
-#     data_5 = segmented_data[5][test_i]
-#     data_6 = segmented_data[5][test_i]
-#
-#     if not is_data_5(data_5):
-#         error += 1
-#
-#     if is_data_5(data_6):
-#         error += 1
-
-#pdb.set_trace()
