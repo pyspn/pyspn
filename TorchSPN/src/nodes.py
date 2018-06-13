@@ -74,7 +74,7 @@ class SparseProductNodes(Nodes):
         return self.val
 
 class SparseSumNodes(Nodes):
-    def __init__(self, is_cuda, num=1):
+    def __init__(self, is_cuda, num=1, weights=None):
         '''
         Initialize a set of sum nodes
         :param num: the number of sum nodes
@@ -85,6 +85,7 @@ class SparseSumNodes(Nodes):
         self.parent_edges = []
         self.scope = None  # todo
         self.is_cuda = is_cuda
+        self.weights= weights
 
     def forward(self):
         self.val = None
@@ -107,9 +108,8 @@ class SparseSumNodes(Nodes):
             tmp_exp = torch.exp(tmp)
             long_tmp = tmp_exp[:, e.flattened_indices]
 
-            # replace e.connection_weights with
-            # weights from global
-            dot_res = torch.mul(long_tmp, e.connection_weights)
+            connection_weights = self.weights[e.connection_weight_indices]
+            dot_res = torch.mul(long_tmp, connection_weights)
 
             condensed = dot_res.view(batch, e.dim[0], e.dim[1])
             result = torch.sum(condensed, 2)

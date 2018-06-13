@@ -57,11 +57,10 @@ class SparseSumEdges():
             buffer_wg = [0] * (max_length - len(wg))
             new_weight.extend(buffer_wg)
 
-        new_weight = np.array(new_weight, dtype='float32')
         part_lg = len(idx)
 
         self.flattened_indices = torch.LongTensor(new_idx)
-        self.connection_weight_indices = torch.from_numpy(new_weight)
+        self.connection_weight_indices = torch.LongTensor(new_weight)
         self.dim = (part_lg, max_length)
 
 class ProductEdges():

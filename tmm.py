@@ -51,9 +51,9 @@ class Hyperparameter(object):
         self.batch_size = batch_size
 
 class TrainingStatistics(object):
-    def __init__(self):
+    def __init__(self, filename='default.perf'):
         self.data = []
-        self.filename = None
+        self.filename = filename
         self.examples_trained = 0
 
 class TrainedConvSPN(torch.nn.Module):
@@ -278,7 +278,7 @@ class TrainedConvSPN(torch.nn.Module):
             if self.stats.examples_trained - last_print > 1000:
                 last_print = self.stats.examples_trained
 
-                training_loss = loss[0][0][0].data.cpu().numpy() / num_trained_iter
+                training_loss = loss[0][0].data.cpu().numpy() / num_trained_iter
 
                 if self.stats.examples_trained - last_validation > 6000:
                     last_validation = self.stats.examples_trained
@@ -288,7 +288,7 @@ class TrainedConvSPN(torch.nn.Module):
                     pd = [float(training_error), float(training_loss), float(validation_error), float(validation_loss)]
                     self.stats.data.append(pd)
 
-                    np.savetxt(self.perf_filename, np.array(self.stats.data))
+                    np.savetxt(self.stats.filename, np.array(self.stats.data))
                     print("Validation Error: " + str(validation_error) + "\nValidation Loss: " + str(validation_loss))
 
                 print("Training Error: " + str(training_error) +  "\nTraining loss: " + str(self.stats.examples_trained / len(self.digits)) + " " + str(training_loss))

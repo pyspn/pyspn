@@ -235,7 +235,7 @@ class Network(torch.nn.Module):
         return _nodes
 
     def AddSparseSumNodes(self, num):
-        _nodes = nodes.SparseSumNodes(is_cuda=self.is_cuda, num=num)
+        _nodes = nodes.SparseSumNodes(is_cuda=self.is_cuda, num=num, weights=self.weights)
         self.nodelist.append(_nodes)
         return _nodes
 
@@ -255,7 +255,7 @@ class Network(torch.nn.Module):
         return _nodes
 
     def SumNodeWeightHook(self):
-        self.weights = self.weights.clamp(min=EPSILON)
+        self.weights.data = self.weights.data.clamp(min=EPSILON)
 
     def AddSumNodeWeights(self, weights, parameters=None):
         '''
