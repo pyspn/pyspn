@@ -7,18 +7,16 @@ import pdb
 EPSILON = 0.00001
 
 class SparseProductEdges():
-    def __init__(self, child, parent, mask_matrix):
+    def __init__(self, child, parent, indices):
         self.parent = parent
         self.child = child
 
         self.flattened_indices = None
         self.dim = None
 
-        self.preprocess(mask_matrix)
+        self.preprocess(indices)
 
-    def preprocess(self, mask_matrix):
-        idx = self.get_sparse_idx(mask_matrix)
-
+    def preprocess(self, idx):
         max_length = max([len(a) for a in idx])
         new_idx = []
         for ii in range(len(idx)):
@@ -31,36 +29,18 @@ class SparseProductEdges():
         self.flattened_indices = torch.LongTensor(new_idx)
         self.dim = (len(idx), max_length)
 
-    def get_sparse_idx(self, mask_matrix):
-        indices = []
-
-        num_cols = len(mask_matrix[0])
-        num_rows = len(mask_matrix)
-
-        for c in range(num_cols):
-            col_idx = []
-            for r in range(num_rows):
-                if mask_matrix[r][c]:
-                    col_idx.append(r)
-
-            indices.append(col_idx)
-
-        return indices
-
 class SparseSumEdges():
-    def __init__(self, child, parent, mask_matrix, weight_matrix):
+    def __init__(self, child, parent, connections, weight_indices):
         self.parent = parent
         self.child = child
 
         self.flattened_indices = None
-        self.connection_weights = None
+        self.connection_weight_indices = None
         self.dim = None
 
-        self.preprocess(mask_matrix, weight_matrix)
+        self.preprocess(connections, weight_indices)
 
-    def preprocess(self, mask_matrix, weight_matrix):
-        (idx, wgt) = self.get_sparse_idx_wgt(mask_matrix, weight_matrix)
-
+    def preprocess(self, idx, wgt):
         max_length = max([len(a) for a in idx])
         new_idx = []
         new_weight = []
@@ -81,34 +61,8 @@ class SparseSumEdges():
         part_lg = len(idx)
 
         self.flattened_indices = torch.LongTensor(new_idx)
-        self.connection_weights = torch.from_numpy(new_weight)
+        self.connection_weight_indices = torch.from_numpy(new_weight)
         self.dim = (part_lg, max_length)
-
-    def get_sparse_idx_wgt(self, mask_matrix, weight_matrix):
-        indices = []
-        sparse_weights = []
-
-        num_cols = len(mask_matrix[0])
-        num_rows = len(mask_matrix)
-
-        for c in range(num_cols):
-            col_idx = []
-            col_wg = []
-            for r in range(num_rows):
-                if mask_matrix[r][c]:
-                    col_idx.append(r)
-                    col_wg.append(weight_matrix[r][c])
-
-            indices.append(col_idx)
-            sparse_weights.append(col_wg)
-
-        return (indices, sparse_weights)
-
-    def sum_weight_hook(self):
-        if self.connection_weights.size()[0] == 6400:
-            #pdb.set_trace()
-            pass
-        self.connection_weights = self.connection_weights.clamp(min=EPSILON)
 
 class ProductEdges():
     '''

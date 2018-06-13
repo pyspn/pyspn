@@ -137,33 +137,37 @@ class MatrixSPN(network.Network):
 
         reorder_metadata = []
 
+        if use_sparse:
+            self.AddSumNodeWeights(metadata.weights, parameters=self.shared_parameters)
+
         # create layers bottom-up
         prev_layer = leaves
         for level in reversed(range(metadata.depth - 1)):
             type = metadata.type_by_level[level]
             num_nodes = metadata.num_nodes_by_level[level]
-            mask = metadata.masks_by_level[level]
-            self.masks.append(mask)
 
             cur_layer = None
             if use_sparse:
+                connections = metadata.connections_by_level[level]
+
                 if type == sum_type:
                     cur_layer = self.AddSparseSumNodes(num_nodes)
-                    weights = self.initialize_weights_from_mask(mask)
+                    weight_indices = metadata.weight_indices_by_level[level]
 
                     self.AddSparseSumEdges(
                         prev_layer,
                         cur_layer,
-                        mask,
-                        weights,
-                        parameters=self.shared_parameters)
+                        connections,
+                        weight_indices)
                 else:
                     cur_layer = self.AddSparseProductNodes(num_nodes)
                     self.AddSparseProductEdges(
                         prev_layer,
                         cur_layer,
-                        mask)
+                        connections)
             else:
+                mask = metadata.masks_by_level[level]
+                self.masks.append(mask)
                 if type == sum_type:
                     cur_layer = self.AddSumNodes(num_nodes)
                     weights = self.initialize_weights_from_mask(mask)
@@ -189,3 +193,12 @@ class MatrixSPN(network.Network):
         print("Done")
         return
 
+# def main():
+#     structure = MultiChannelConvSPN(8, 1, 1, 2, 2, 1)
+#     shared_parameters = param.Param()
+#
+#     network = MatrixSPN(structure, shared_parameters, is_cuda=False)
+#     pass
+#
+# if __name__ == '__main__':
+#     main()

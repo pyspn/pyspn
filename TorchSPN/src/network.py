@@ -15,6 +15,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src import nodes, edges, gl
 import numpy as np
 
+EPSILON = 0.00001
+
 class Network(torch.nn.Module):
     '''
     A particular SPN structure, whose parameters are in Param
@@ -252,29 +254,37 @@ class Network(torch.nn.Module):
         self.nodelist.append(_nodes)
         return _nodes
 
+    def SumNodeWeightHook(self):
+        self.weights = self.weights.clamp(min=EPSILON)
+
+    def AddSumNodeWeights(self, weights, parameters=None):
+        '''
+        :param weights: the weights for this SPN
+        '''
+        self.weights = self.parameter(torch.from_numpy(weights), requires_grad=True)
+
+        parameters.add_param(self.weights, hook=self.SumNodeWeightHook)
+
     def AddSparseSumEdges(
             self,
             lower,
             upper,
-            mask_matrix,
-            weight_matrix,
-            parameters=None):
-        _edges = edges.SparseSumEdges(lower, upper, mask_matrix, weight_matrix)
+            connections,
+            weight_indices):
+        _edges = edges.SparseSumEdges(lower, upper, connections, weight_indices)
         upper.child_edges.append(_edges)
         lower.parent_edges.append(_edges)
 
         flattened_indices = self.var(_edges.flattened_indices)
-        weights = self.parameter(_edges.connection_weights, requires_grad=True)
+        connection_weight_indices = self.var(_edges.connection_weight_indices)
 
         _edges.flattened_indices = flattened_indices
-        _edges.connection_weights = weights
-
-        parameters.add_param(weights, _edges.sum_weight_hook)
+        _edges.connection_weight_indices= connection_weight_indices
 
         return _edges
 
-    def AddSparseProductEdges(self, lower, upper, mask_matrix):
-        _edges = edges.SparseProductEdges(lower, upper, mask_matrix)
+    def AddSparseProductEdges(self, lower, upper, indices):
+        _edges = edges.SparseProductEdges(lower, upper, indices)
 
         _edges.flattened_indices = self.var(_edges.flattened_indices)
 

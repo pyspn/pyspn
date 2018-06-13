@@ -107,7 +107,10 @@ class SparseSumNodes(Nodes):
             tmp_exp = torch.exp(tmp)
             long_tmp = tmp_exp[:, e.flattened_indices]
 
+            # replace e.connection_weights with
+            # weights from global
             dot_res = torch.mul(long_tmp, e.connection_weights)
+
             condensed = dot_res.view(batch, e.dim[0], e.dim[1])
             result = torch.sum(condensed, 2)
 

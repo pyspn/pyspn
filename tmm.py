@@ -322,9 +322,8 @@ def cprofile_end(filename):
 def main():
     global tspn
 
-    #digits_to_train = [5,6,7,8,9]
     digits_to_train = [0,1,2,3,4,5,6,7,8,9]
-    structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(digits_to_train))
+    structure = MultiChannelConvSPN(16, 16, 1, 2, 4, len(digits_to_train))
     hyperparameter = Hyperparameter(
             structure=structure,
             optimizer_constructor=(lambda param: torch.optim.Adam(param, lr=0.005)),

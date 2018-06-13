@@ -14,6 +14,8 @@ class CVMetaData(object):
         self.depth = 0
         self.masks_by_level = []
         self.type_by_level = []
+        self.connections_by_level = []
+        self.weight_indices_by_level = []
 
         self.level_label_by_node = {}
         self.num_nodes_by_level = []
@@ -23,6 +25,8 @@ class CVMetaData(object):
         self.leaves_input_indices = []
         self.leaves_network_id = []
         self.num_leaves_per_network = None
+
+        self.weights = cv.weights # TODO: Make sure this is right
 
         self.get_cv_metadata(cv)
 
@@ -79,6 +83,7 @@ class CVMetaData(object):
         self.masks_by_level = self.get_masks_by_level(cv)
         self.leaves_network_id = self.get_leaves_network_id(cv)
         self.leaves_input_indices = self.get_leaves_input_indices(cv)
+        (self.connections_by_level, self.weight_indices_by_level) = self.get_connections_and_weights_by_level(cv)
         self.num_leaves_per_network = cv.x_size * cv.y_size
 
     def get_masks_by_level(self, cv):
@@ -125,13 +130,67 @@ class CVMetaData(object):
 
         return leaves_network_id
 
+    def get_connections_and_weights_by_level(self, cv):
+        '''
+        Returns TorchSPN style sparse connection corresponding to ConvSPN cv
+        '''
+        connections_by_level = []
+        weight_indices_by_level = []
+        for cur_level in range(self.depth - 1):
+            next_level = cur_level + 1
+            cur_level_count = self.num_nodes_by_level[cur_level]
+            next_level_count = self.num_nodes_by_level[next_level]
+
+            cur_level_nodes = self.nodes_by_level[cur_level]
+            level_connections = [[] for c in cur_level_nodes]
+            weights = [[] for c in cur_level_nodes]
+
+            level_type = cur_level_nodes[0].node_type
+
+            for cur_node in cur_level_nodes:
+                cur_label = self.level_label_by_node[cur_node]
+                for child_node in cur_node.children:
+                    child_label = self.level_label_by_node[child_node]
+                    level_connections[cur_label].append(child_label)
+
+                    if level_type == 'Sum':
+                        weights[cur_label].append( cur_node.weight_id_by_child[child_node] )
+            connections_by_level.append( level_connections )
+            weight_indices_by_level.append( weights )
+
+        return (connections_by_level, weight_indices_by_level)
+
 def get_edge_count_from_layers(cv_layers):
     '''
     Was used to test the correctness of edge count in the conversion
     '''
-
     edge_count = []
     for layer in cv_layers:
         edge_count.append(np.count_nonzero(layer))
 
     return edge_count
+
+total_edge_count = 0
+edges = []
+def get_edges(level, level_type, level_nodes, edge_count):
+    if level_type != 'Sum':
+        return
+
+    global edges, total_edge_count
+
+    for node in level_nodes:
+        level_edges = list(node.weight_id_by_child.values())
+        edges.extend(level_edges)
+
+    total_edge_count += edge_count
+
+def main():
+    structure = MultiChannelConvSPN(8, 1, 1, 2, 2, 1)
+    structure.print_stat()
+
+
+
+    pass
+
+if __name__ == '__main__':
+    main()
