@@ -61,7 +61,8 @@ class CVMetaData(object):
                         error = "Level type mismatch: Expects " + level_type + " gets " + node_type
                         raise Exception(error)
 
-                for child in node.children:
+                for edge in node.edges:
+                    child = edge.child
                     if child in visited:
                         continue
                     visited[child] = True
@@ -101,7 +102,8 @@ class CVMetaData(object):
             cur_level_nodes = self.nodes_by_level[cur_level]
             for cur_node in  cur_level_nodes:
                 cur_label = self.level_label_by_node[cur_node]
-                for child_node in cur_node.children:
+                for child_edge in cur_node.edges:
+                    child_node = child_edge.child
                     child_label = self.level_label_by_node[child_node]
                     level_mask[cur_label][child_label] = 1
 
@@ -149,12 +151,13 @@ class CVMetaData(object):
 
             for cur_node in cur_level_nodes:
                 cur_label = self.level_label_by_node[cur_node]
-                for child_node in cur_node.children:
+                for child_edge in cur_node.edges:
+                    child_node = child_edge.child
                     child_label = self.level_label_by_node[child_node]
                     level_connections[cur_label].append(child_label)
 
                     if level_type == 'Sum':
-                        weights[cur_label].append( cur_node.weight_id_by_child[child_node] )
+                        weights[cur_label].append( child_edge.weight_id )
             connections_by_level.append( level_connections )
             weight_indices_by_level.append( weights )
 

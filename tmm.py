@@ -16,32 +16,9 @@ from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
+import data_loader
 
-print("Loading data set..")
-train_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
-test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
-
-tspn = None
-
-def segment_data(data):
-    segmented_data = []
-    for i in range(10):
-        i_examples = (data[data[:,0] == i][:,1:] / 255) - 0.5
-        segmented_data.append(i_examples)
-
-    min_count = min([arr.shape[0] for arr in segmented_data])
-
-    segmented_tensor = np.zeros((10, min_count, 256))
-
-    for i in range(10):
-        segmented_tensor[i] = segmented_data[i][:min_count]
-
-    return segmented_tensor
-
-print("Segmenting...")
-segmented_data = segment_data(train_raw)
-test_data = segment_data(test_raw)
-print("Dataset loaded!")
+(train_data, test_data) = data_loader.load_data(data_loader.mnist_16_filename)
 
 class Hyperparameter(object):
     def __init__(self, structure=None, optimizer_constructor=None, loss=None, batch_size=None):
@@ -203,7 +180,7 @@ class TrainedConvSPN(torch.nn.Module):
         batch_count_by_digit = []
         input_by_digit = []
         for sample_digit in self.digits:
-            data_on_digit = segmented_data[sample_digit]
+            data_on_digit = train_data[sample_digit]
             num_data_on_digit = data_on_digit.shape[0]
 
             input_i = np.tile(test_data[sample_digit, 0:validation_size], self.hyperparameter.structure.num_channels)
@@ -247,12 +224,12 @@ class TrainedConvSPN(torch.nn.Module):
             batch_count_by_digit = []
             input_by_digit = []
             for sample_digit in self.digits:
-                data_on_digit = segmented_data[sample_digit]
+                data_on_digit = train_data[sample_digit]
                 num_data_on_digit = data_on_digit.shape[0]
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
 
-                input_i = np.tile(segmented_data[sample_digit, batch_start:batch_end], self.hyperparameter.structure.num_channels)
+                input_i = np.tile(train_data[sample_digit, batch_start:batch_end], self.hyperparameter.structure.num_channels)
                 input_by_digit.append(input_i)
 
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
@@ -275,12 +252,12 @@ class TrainedConvSPN(torch.nn.Module):
             self.optimizer.step()
             self.shared_parameters.proj()
 
-            if self.stats.examples_trained - last_print > 1000:
+            if self.stats.examples_trained - last_print > 10000:
                 last_print = self.stats.examples_trained
 
                 training_loss = loss[0][0].data.cpu().numpy() / num_trained_iter
 
-                if self.stats.examples_trained - last_validation > 6000:
+                if self.stats.examples_trained - last_validation > 60000:
                     last_validation = self.stats.examples_trained
                     print("Validating network " + str(int(self.stats.examples_trained / 60000)))
                     (validation_error, validation_loss) = self.validate_network()
@@ -296,8 +273,7 @@ class TrainedConvSPN(torch.nn.Module):
             loss = 0
             self.zero_grad()
 
-def load_model(filename):
-    pass
+tspn = None
 
 def train_spn():
     print("Training SPN")

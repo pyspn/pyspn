@@ -39,17 +39,29 @@ class BinaryLeaf(Leaf):
 
 class Node(object):
     def __init__(self, scope, node_type=None):
-        self.children = []
+        self.edges = []
         self.scope = scope
         self.depth = 0
         self.id = None
         self.node_type = node_type
 
+class Edge(object):
+    def __init__(self, parent=None, child=None):
+        self.parent = parent
+        self.child = child
+
+class SumEdge(Edge):
+    def __init__(self, parent=None, child=None, weight_id=None):
+        Edge.__init__(self, parent=parent, child=child)
+        self.weight_id = weight_id
+
+class ProductEdge(Edge):
+    def __init__(self, parent=None, child=None):
+        Edge.__init__(self, parent=parent, child=child)
 
 class Sum(Node):
     def __init__(self, scope=None):
         Node.__init__(self, scope, node_type="Sum")
-        self.weight_id_by_child= {}
 
 class Product(Node):
     def __init__(self, scope=None):
@@ -113,9 +125,10 @@ class GraphSPN(object):
                 if isinstance(u,PixelLeaf):
                     continue
 
-                edge_count += len(u.children)
+                edge_count += len(u.edges)
 
-                for v in u.children:
+                for e in u.edges:
+                    v = e.child
                     if v in visited:
                         continue
 
@@ -287,9 +300,10 @@ class ConvSPN(GraphSPN):
 
         for shift in shifts:
             prd = self.generate_prd(shift, child_depth)
-            root.children.append(prd)
             self.last_weight_id += 1
-            root.weight_id_by_child[prd] = self.last_weight_id
+
+            edge = SumEdge(parent=root, child=prd, weight_id=self.last_weight_id)
+            root.edges.append(edge)
 
         # Cache root
         self.cached_sum[scope.id] = root
@@ -319,7 +333,10 @@ class ConvSPN(GraphSPN):
 
         for subdiv in subdivs:
             sum = self.generate_sum(subdiv, child_depth)
-            root.children.append(sum)
+
+            edge = ProductEdge(parent=root, child=sum)
+
+            root.edges.append(edge)
 
         # Cache root
         self.cached_prd[scope.id] = root
@@ -452,7 +469,8 @@ class ConvSPN(GraphSPN):
 
                 if isinstance(u,PixelLeaf):
                     continue
-                for v in u.children:
+                for e in u.edges:
+                    v = e.child
                     q.append(v)
 
             print("Level " + str(level) + ": " + str(len(all)))
@@ -552,12 +570,12 @@ class MultiChannelConvSPN(GraphSPN):
         offset = len(self.weights)
         num_root_edge = 0
         for root in self.roots:
-            channel_children = channel.roots[0].children
+            channel_children = channel.roots[0].edges
 
-            root.children = channel_children # all channel's root have identical children
+            root.edges = channel_children # all channel's root have identical children
 
             for c in channel_children:
-                root.weight_id_by_child[c] = num_root_edge + offset
+                c.weight_id =  num_root_edge + offset
                 num_root_edge += 1
 
         root_edge_weights = np.random.uniform(10, 1000, num_root_edge).astype('float32')
@@ -582,7 +600,8 @@ class MultiChannelConvSPN(GraphSPN):
                     self.cached_leaf[u.id].append(u)
                     continue
 
-                for v in u.children:
+                for e in u.edges:
+                    v = e.child
                     if v in visited:
                         continue
 
@@ -605,7 +624,8 @@ class MultiChannelConvSPN(GraphSPN):
                 if isinstance(u, PixelLeaf):
                     continue
 
-                for v in u.children:
+                for e in u.edges:
+                    v = e.child
                     if v in visited:
                         continue
 
@@ -614,16 +634,18 @@ class MultiChannelConvSPN(GraphSPN):
 
                 if isinstance(u, Sum):
                     interchannel_children = []
-
-                    for v in u.children:
+                    old_children = [e.child for e in u.edges]
+                    for v in old_children:
                         inter_child_in_v = self.cached_prd[v.scope.id]
                         interchannel_children.extend(inter_child_in_v)
 
-                    new_children = list( set(interchannel_children) - set(u.children) )
-                    u.children = interchannel_children
+                    new_children = list( set(interchannel_children) - set(old_children) )
                     for c in new_children:
-                        u.weight_id_by_child[c] = id_offset + num_interchannel_edges
+                        weight_id = id_offset + num_interchannel_edges
+                        edge = SumEdge(parent=u, child=c, weight_id=weight_id)
                         num_interchannel_edges += 1
+
+                        u.edges.append(edge)
 
         interchannel_weights = np.random.uniform(10, 1000, num_interchannel_edges).astype('float32')
         self.weights = np.concatenate( [self.weights, interchannel_weights] )
@@ -633,8 +655,8 @@ class MultiChannelConvSPN(GraphSPN):
             return
 
         for node in level_nodes:
-            for c in node.weight_id_by_child:
-                node.weight_id_by_child[c] += offset
+            for e in node.edges:
+                e.weight_id += offset
 
 class ClassifierSPN(GraphSPN):
     def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, num_channels, num_classes):

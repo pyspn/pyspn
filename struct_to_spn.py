@@ -193,12 +193,12 @@ class MatrixSPN(network.Network):
         print("Done")
         return
 
-# def main():
-#     structure = MultiChannelConvSPN(8, 1, 1, 2, 2, 1)
-#     shared_parameters = param.Param()
-#
-#     network = MatrixSPN(structure, shared_parameters, is_cuda=False)
-#     pass
-#
-# if __name__ == '__main__':
-#     main()
+def main():
+    structure = MultiChannelConvSPN(8, 1, 1, 2, 2, 1)
+    shared_parameters = param.Param()
+
+    network = MatrixSPN(structure, shared_parameters, is_cuda=False)
+    pass
+
+if __name__ == '__main__':
+    main()
