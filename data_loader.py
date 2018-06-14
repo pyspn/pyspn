@@ -14,7 +14,10 @@ from collections import defaultdict, deque
 from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-mnist_16_filename = "mnist_16"
+from cifar10.dataset import cifar_extractor
+
+mnist_16 = "mnist_16"
+cifar_10 = "cifar_10"
 
 def segment_data(data):
     segmented_data = []
@@ -32,7 +35,7 @@ def segment_data(data):
     return segmented_tensor
 
 def load_data(filename):
-    if filename == mnist_16_filename:
+    if filename == mnist_16:
         print("Loading data...")
         train_raw = genfromtxt('train_mnist_16.csv', delimiter=',')
         test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')
@@ -41,6 +44,12 @@ def load_data(filename):
         train_data = segment_data(train_raw)
         test_data = segment_data(test_raw)
         print("Data segmented!")
+
+        return (train_data, test_data)
+    if filename == cifar_10:
+        print("Loading data...")
+        (train_data, test_data) = cifar_extractor.get_cifar_10_train_test()
+        print("Data loaded!")
 
         return (train_data, test_data)
 

@@ -193,9 +193,24 @@ class MatrixSPN(network.Network):
         print("Done")
         return
 
+total_edge_count = 0
+edges = []
+def get_edges(level, level_type, level_nodes, edge_count):
+    if level_type != 'Sum':
+        return
+
+    global edges, total_edge_count
+
+    for node in level_nodes:
+        edges.extend(node.edges)
+
+    total_edge_count += edge_count
+
 def main():
-    structure = MultiChannelConvSPN(8, 1, 1, 2, 2, 1)
+    structure = MultiChannelConvSPN(4, 1, 1, 2, 2, 1)
     shared_parameters = param.Param()
+
+    structure.traverse_by_level(get_edges)
 
     network = MatrixSPN(structure, shared_parameters, is_cuda=False)
     pass
