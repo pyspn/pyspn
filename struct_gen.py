@@ -570,13 +570,16 @@ class MultiChannelConvSPN(GraphSPN):
         offset = len(self.weights)
         num_root_edge = 0
         for root in self.roots:
-            channel_children = channel.roots[0].edges
+            channel_edges = channel.roots[0].edges
 
-            root.edges = channel_children # all channel's root have identical children
-
-            for c in channel_children:
-                c.weight_id =  num_root_edge + offset
+            edges = [] # all channel's root have identical children
+            for e in channel_edges:
+                weight_id =  num_root_edge + offset
+                edge = SumEdge(parent=root, child=e.child, weight_id=weight_id)
                 num_root_edge += 1
+                edges.append(edge)
+
+            root.edges = edges
 
         root_edge_weights = np.random.uniform(10, 1000, num_root_edge).astype('float32')
 

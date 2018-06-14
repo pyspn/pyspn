@@ -97,8 +97,8 @@ class TrainedConvSPN(torch.nn.Module):
         return loss_fn( -prob, target )
 
     def compute_batch_loss_from_prob(self, batch_count_by_digit, prob):
-        #return self.compute_batch_hinge_loss( batch_count_by_digit, prob )
-        return self.compute_batch_cross_entropy( batch_count_by_digit, prob )
+        return self.compute_batch_hinge_loss( batch_count_by_digit, prob )
+        #return self.compute_batch_cross_entropy( batch_count_by_digit, prob )
 
     def compute_batch_hinge_loss(self, batch_count_by_digit, prob):
         loss = 0
@@ -244,7 +244,7 @@ class TrainedConvSPN(torch.nn.Module):
             prob = self.network.ComputeTMMLoss(val_dict=val_dict, cond_mask_dict=cond_mask_dict)
 
             loss = self.compute_batch_loss_from_prob(batch_count_by_digit, prob)
-            loss.backward(retain_graph=True)
+            loss.backward()
 
             training_error = self.compute_batch_training_error_from_prob(batch_count_by_digit, prob)
             num_trained_iter = self.stats.examples_trained - prev_training_count
@@ -299,10 +299,10 @@ def main():
     global tspn
 
     digits_to_train = [0,1,2,3,4,5,6,7,8,9]
-    structure = MultiChannelConvSPN(16, 16, 1, 2, 4, len(digits_to_train))
+    structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(digits_to_train))
     hyperparameter = Hyperparameter(
             structure=structure,
-            optimizer_constructor=(lambda param: torch.optim.Adam(param, lr=0.005)),
+            optimizer_constructor=(lambda param: torch.optim.Adam(param, lr=0.05)),
             batch_size=32)
 
     print("Creating SPN")

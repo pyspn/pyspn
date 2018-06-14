@@ -47,7 +47,7 @@ def predict(model, x):
     return predicted_digit
 
 def main():
-    model = pickle.load(open('ce_1', 'rb'))
+    model = pickle.load(open('big250', 'rb'))
     num_tests = 50
     error = 0
     total_data = 0
