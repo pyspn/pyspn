@@ -18,13 +18,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 import data_loader
 
-(train_data, test_data) = data_loader.load_data(data_loader.mnist_16_filename)
+(train_data, test_data) = data_loader.load_data(data_loader.cifar_10)
 
 class Hyperparameter(object):
-    def __init__(self, structure=None, optimizer_constructor=None, loss=None, batch_size=None):
+    def __init__(self, structure=None, optimizer_constructor=None, loss=None,\
+                 tiling_factor=None, batch_size=None):
         self.structure = structure
         self.optimizer_constructor = optimizer_constructor
         self.loss = loss
+        self.tiling_factor = tiling_factor
         self.batch_size = batch_size
 
 class TrainingStatistics(object):
@@ -183,7 +185,7 @@ class TrainedConvSPN(torch.nn.Module):
             data_on_digit = train_data[sample_digit]
             num_data_on_digit = data_on_digit.shape[0]
 
-            input_i = np.tile(test_data[sample_digit, 0:validation_size], self.hyperparameter.structure.num_channels)
+            input_i = np.tile(test_data[sample_digit, 0:validation_size], self.hyperparameter.tiling_factor)
             input_by_digit.append(input_i)
 
             batch_count_by_digit.append(validation_size)
@@ -229,7 +231,7 @@ class TrainedConvSPN(torch.nn.Module):
                 batch_start = batch_start_pts[sample_digit]
                 batch_end = min(batch_start + batch, num_data_on_digit)
 
-                input_i = np.tile(train_data[sample_digit, batch_start:batch_end], self.hyperparameter.structure.num_channels)
+                input_i = np.tile(train_data[sample_digit, batch_start:batch_end], self.hyperparameter.tiling_factor)
                 input_by_digit.append(input_i)
 
                 batch_start_pts[sample_digit] = int( batch_end % num_data_on_digit )
@@ -298,12 +300,13 @@ def cprofile_end(filename):
 def main():
     global tspn
 
-    digits_to_train = [0,1,2,3,4,5,6,7,8,9]
-    structure = MultiChannelConvSPN(16, 16, 1, 2, 40, len(digits_to_train))
+    digits_to_train = [0,1]
+    structure = MultiChannelConvSPN(32, 32, 1, 2, 30, len(digits_to_train))
     hyperparameter = Hyperparameter(
             structure=structure,
             optimizer_constructor=(lambda param: torch.optim.Adam(param, lr=0.05)),
-            batch_size=32)
+            batch_size=32,
+            tiling_factor=int(structure.num_channels / 3))
 
     print("Creating SPN")
 

@@ -44,7 +44,7 @@ def get_train_data_labels():
     return (train_data, train_labels)
 
 def get_test_data_labels():
-    return get_data_and_labels("test_batch")
+    return get_data_and_labels("cifar10/dataset/test_batch")
 
 def get_segmented_data(data, labels):
     num_data = len(labels)
@@ -54,7 +54,7 @@ def get_segmented_data(data, labels):
     for i in range(num_data):
         segmented_data[ labels[i] ].append(data[i])
 
-    return segmented_data
+    return np.array(segmented_data, dtype='float32')
 
 def get_cifar_10_train_test():
     (train_data_raw, train_labels_raw) = get_train_data_labels()
