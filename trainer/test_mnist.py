@@ -1,21 +1,6 @@
-import torch
-from torch import optim, cuda
-import pdb
-import math
-import csv
-import pdb
-import numpy as np
-import pickle
-from numpy import genfromtxt
-
-from collections import defaultdict, deque
-from struct_to_spn import *
-from timeit import default_timer as timer
-
 #sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 #from TorchSPN.src import network, param, nodes
-from struct_to_spn import MatrixSPN
-from tmm import *
+from trainer.trainer import *
 
 print("Loading data set..")
 test_raw = genfromtxt('test_mnist_16.csv', delimiter=',')

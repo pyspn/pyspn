@@ -1,22 +1,15 @@
-import torch
-import pdb
-from torch import optim, cuda
-import math
-import csv
-import pdb
-import numpy as np
-import pickle
-from numpy import genfromtxt
-import time
 import cProfile
+import pdb
+import pickle
+import time
 
-from collections import defaultdict, deque
-from struct_to_spn import *
-from timeit import default_timer as timer
+import torch
+from torch import optim, cuda
+
+from compiler.struct_to_spn import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from TorchSPN.src import network, param, nodes
-import data_loader
+from TorchSPN.src import param
 import structure
 
 # (train_data, test_data) = data_loader.load_data(data_loader.cifar_10)
