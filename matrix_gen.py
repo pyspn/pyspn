@@ -1,4 +1,5 @@
-from structure.struct_gen import *
+import structure
+import numpy as np
 
 # Constants
 sum_type = "sum"

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import pdb
 import math
+from .leaf import *
 from collections import defaultdict, deque
 
 class Structure(object):

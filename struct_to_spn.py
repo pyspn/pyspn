@@ -2,6 +2,7 @@ import os.path
 import sys
 
 from matrix_gen import *
+import structure
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network

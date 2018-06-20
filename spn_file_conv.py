@@ -1,4 +1,4 @@
-from structure.struct_gen import *
+from structure.structure import *
 
 class TachyonFileGenerator(object):
     def __init__(self, cv):

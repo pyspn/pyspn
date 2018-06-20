@@ -1,4 +1,12 @@
-class ConvSPN(GraphSPN):
+import numpy as np
+from .structure import Structure
+from collections import defaultdict, deque
+from .scope import Scope
+from .node import *
+from .leaf import *
+import math
+
+class ConvSPN(Structure):
     def __init__(self, x_size, y_size, sum_shifts, prd_subdivs):
         super(ConvSPN, self).__init__()
 
@@ -24,6 +32,7 @@ class ConvSPN(GraphSPN):
         self.count_by_depth = defaultdict(int)
 
         self.generate_spn()
+        pass
 
     def generate_spn(self):
         root_scope = Scope(0, 0, self.x_size, self.y_size)

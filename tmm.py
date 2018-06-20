@@ -17,13 +17,14 @@ from timeit import default_timer as timer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network, param, nodes
 import data_loader
+import structure
 
-(train_data, test_data) = data_loader.load_data(data_loader.cifar_10)
+# (train_data, test_data) = data_loader.load_data(data_loader.cifar_10)
 
 class Hyperparameter(object):
-    def __init__(self, structure=None, optimizer_constructor=None, loss=None,\
+    def __init__(self, struct=None, optimizer_constructor=None, loss=None,\
                  tiling_factor=None, batch_size=None):
-        self.structure = structure
+        self.struct = struct
         self.optimizer_constructor = optimizer_constructor
         self.loss = loss
         self.tiling_factor = tiling_factor
@@ -59,7 +60,7 @@ class TrainedConvSPN(torch.nn.Module):
             self.index_by_digits[digit] = i
 
         self.network = MatrixSPN(
-            self.hyperparameter.structure,
+            self.hyperparameter.struct,
             self.shared_parameters,
             is_cuda=self.use_cuda)
 
@@ -301,23 +302,23 @@ def main():
     global tspn
 
     digits_to_train = [0,1]
-    structure = MultiChannelConvSPN(32, 32, 1, 2, 30, len(digits_to_train))
+    struct = structure.MultiChannelConvSPN(32, 32, 1, 2, 30, len(digits_to_train))
     hyperparameter = Hyperparameter(
-            structure=structure,
+            struct=struct,
             optimizer_constructor=(lambda param: torch.optim.Adam(param, lr=0.05)),
             batch_size=32,
-            tiling_factor=int(structure.num_channels / 3))
+            tiling_factor=int(struct.num_channels / 3))
 
     print("Creating SPN")
 
-    tspn = TrainedConvSPN(digits=digits_to_train, hyperparameter=hyperparameter)
-
-    cprofile_start()
-    train_spn()
-    cprofile_end("tmm.cprof")
-    print("Done")
-
-    tspn.save_model('plain_' + str(digits_to_train).replace(" ", ""))
+    # tspn = TrainedConvSPN(digits=digits_to_train, hyperparameter=hyperparameter)
+    #
+    # cprofile_start()
+    # train_spn()
+    # cprofile_end("tmm.cprof")
+    # print("Done")
+    #
+    # tspn.save_model('plain_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()
 

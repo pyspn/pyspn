@@ -1,3 +1,12 @@
+import numpy as np
+from .structure import Structure
+from collections import defaultdict, deque
+from .conv_spn import ConvSPN
+from .leaf import *
+from .scope import Scope
+from .node import *
+import math
+
 class MultiChannelConvSPN(Structure):
     def __init__(self, x_size, y_size, sum_shifts, prd_subdivs, num_channels, num_out):
         super(MultiChannelConvSPN, self).__init__()
