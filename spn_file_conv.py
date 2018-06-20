@@ -1,5 +1,4 @@
-from collections import defaultdict, deque
-from struct_gen import *
+from structure.struct_gen import *
 
 class TachyonFileGenerator(object):
     def __init__(self, cv):

@@ -1,0 +1,8 @@
+cifar10/
+mnist/
+*.pyc
+activations/
+performance/
+profiling/
+train_mnist_16.csv
+test_mnist_16.csv

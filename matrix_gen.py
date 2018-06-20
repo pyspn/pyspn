@@ -1,9 +1,4 @@
-import numpy as np
-import torch
-import pdb
-import math
-from collections import defaultdict, deque
-from struct_gen import *
+from structure.struct_gen import *
 
 # Constants
 sum_type = "sum"

@@ -1,18 +1,10 @@
-import numpy as np
-import torch
-import pdb
-import math
-from collections import defaultdict, deque
 import os.path
 import sys
-from struct_gen import *
+
 from matrix_gen import *
-import math
-from random import randint
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from TorchSPN.src import network, param, nodes
-from reordering.masks import reorder
+from TorchSPN.src import network
 
 use_sparse = True
 debug = True
@@ -192,28 +184,3 @@ class MatrixSPN(network.Network):
 
         print("Done")
         return
-
-total_edge_count = 0
-edges = []
-def get_edges(level, level_type, level_nodes, edge_count):
-    if level_type != 'Sum':
-        return
-
-    global edges, total_edge_count
-
-    for node in level_nodes:
-        edges.extend(node.edges)
-
-    total_edge_count += edge_count
-
-def main():
-    structure = MultiChannelConvSPN(4, 1, 1, 2, 2, 1)
-    shared_parameters = param.Param()
-
-    structure.traverse_by_level(get_edges)
-
-    network = MatrixSPN(structure, shared_parameters, is_cuda=False)
-    pass
-
-if __name__ == '__main__':
-    main()
