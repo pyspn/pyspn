@@ -2,20 +2,66 @@
 
 import torch
 import numpy as np
+import pdb
 
 EPSILON = 0.00001
 
 class SparseProductEdges():
-    def __init__(self, child, parent, connections):
+    def __init__(self, child, parent, indices):
         self.parent = parent
         self.child = child
-        self.connections = connections
+
+        self.flattened_indices = None
+        self.dim = None
+
+        self.preprocess(indices)
+
+    def preprocess(self, idx):
+        max_length = max([len(a) for a in idx])
+        new_idx = []
+        for ii in range(len(idx)):
+            id = idx[ii]
+            new_idx.extend(id)
+
+            buffer = [new_idx[-1]] * (max_length - len(id))
+            new_idx.extend(buffer)
+
+        self.flattened_indices = torch.LongTensor(new_idx)
+        self.dim = (len(idx), max_length)
 
 class SparseSumEdges():
-    def __init__(self, child, parent, connection_weights):
+    def __init__(self, child, parent, connections, weight_indices):
         self.parent = parent
         self.child = child
-        self.connection_weights = connection_weights
+
+        self.flattened_indices = None
+        self.connection_weight_indices = None
+        self.dim = None
+
+        self.preprocess(connections, weight_indices)
+
+    def preprocess(self, idx, wgt):
+        max_length = max([len(a) for a in idx])
+        new_idx = []
+        new_weight = []
+        for ii in range(len(idx)):
+            id = idx[ii]
+            new_idx.extend(id)
+
+            buffer = [new_idx[-1]] * (max_length - len(id))
+            new_idx.extend(buffer)
+
+            wg = wgt[ii]
+            new_weight.extend(wg)
+
+            buffer_wg = [0] * (max_length - len(wg))
+            new_weight.extend(buffer_wg)
+
+        part_lg = len(idx)
+
+        self.flattened_indices = torch.LongTensor(new_idx)
+        self.connection_weight_indices = torch.LongTensor(new_weight)
+        self.dim = (part_lg, max_length)
 
 class ProductEdges():
     '''
@@ -51,7 +97,8 @@ class SumEdges():
         self.mask  = mask
 
     def sum_weight_hook(self):
-        self.weights.data = self.weights.data.clamp(min=EPSILON)
+        if self.weights.size()[0] == 30:
+            #pdb.set_trace()
+            pass
 
-        partition = torch.sum(self.weights.data * self.mask.data, dim=0, keepdim=True)
-        self.weights.data /= partition
+        self.weights.data = self.weights.data.clamp(min=EPSILON)

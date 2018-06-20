@@ -5,11 +5,17 @@ from torch.autograd import Variable as Variable
 
 import os.path
 import sys
+import pdb
+
+import time
+from collections import defaultdict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src import nodes, edges, gl
 import numpy as np
+
+EPSILON = 0.00001
 
 class Network(torch.nn.Module):
     '''
@@ -40,14 +46,43 @@ class Network(torch.nn.Module):
         Override torch.nn.Module.forward
         :return: last layer's values
         '''
+        # durations = []
+
+        # leaf_start = time.time()
         for layer in self.leaflist:
             val = layer()
             if gl.debug:
                 print('Leaf node: {}'.format(val.data.cpu().numpy()))
+        # leaf_end = time.time()
+        # leaf_duration = leaf_end - leaf_start
+
+        # durations.append(leaf_duration)
+
         for layer in self.nodelist:
+            # node_start = time.time()
             val = layer()
+            # node_end = time.time()
+            # node_duration = node_end - node_start
+            # durations.append(node_duration)
             if gl.debug:
                 print('Intermediate node: {}'.format(val.data.cpu().numpy()))
+
+        # durations_by_type = defaultdict(float)
+        #
+        # for (i, duration) in enumerate(durations):
+        #     if i == 0:
+        #         node_type = "Leaf"
+        #         durations_by_type[node_type] += duration
+        #         print(str(i) + " " + node_type + " " + str(duration))
+        #     else:
+        #         node_type = str(type(self.nodelist[i - 1]))
+        #         durations_by_type[node_type] += duration
+        #         print(str(i) + " " + node_type + " " + str(duration))
+        #
+        # for node_type in durations_by_type:
+        #     print(node_type + " :" + str(durations_by_type[node_type]))
+        #
+        # pdb.set_trace()
 
         return val
 
@@ -199,6 +234,11 @@ class Network(torch.nn.Module):
         self.nodelist.append(_nodes)
         return _nodes
 
+    def AddSparseSumNodes(self, num):
+        _nodes = nodes.SparseSumNodes(is_cuda=self.is_cuda, num=num, weights=self.weights)
+        self.nodelist.append(_nodes)
+        return _nodes
+
     def AddSparseProductNodes(self, num):
         _nodes = nodes.SparseProductNodes(is_cuda=self.is_cuda, num=num)
         self.nodelist.append(_nodes)
@@ -214,8 +254,40 @@ class Network(torch.nn.Module):
         self.nodelist.append(_nodes)
         return _nodes
 
-    def AddSparseProductEdges(self, lower, upper, connections):
-        _edges = edges.SparseProductEdges(lower, upper, connections)
+    def SumNodeWeightHook(self):
+        self.weights.data = self.weights.data.clamp(min=EPSILON)
+
+    def AddSumNodeWeights(self, weights, parameters=None):
+        '''
+        :param weights: the weights for this SPN
+        '''
+        self.weights = self.parameter(torch.from_numpy(weights), requires_grad=True)
+
+        parameters.add_param(self.weights, hook=self.SumNodeWeightHook)
+
+    def AddSparseSumEdges(
+            self,
+            lower,
+            upper,
+            connections,
+            weight_indices):
+        _edges = edges.SparseSumEdges(lower, upper, connections, weight_indices)
+        upper.child_edges.append(_edges)
+        lower.parent_edges.append(_edges)
+
+        flattened_indices = self.var(_edges.flattened_indices)
+        connection_weight_indices = self.var(_edges.connection_weight_indices)
+
+        _edges.flattened_indices = flattened_indices
+        _edges.connection_weight_indices= connection_weight_indices
+
+        return _edges
+
+    def AddSparseProductEdges(self, lower, upper, indices):
+        _edges = edges.SparseProductEdges(lower, upper, indices)
+
+        _edges.flattened_indices = self.var(_edges.flattened_indices)
+
         upper.child_edges.append(_edges)
         lower.parent_edges.append(_edges)
 
@@ -323,7 +395,7 @@ class Network(torch.nn.Module):
 
         return self()
 
-    def ComputeProbability(self, val_dict=None, cond_mask_dict={}, grad=False, log=False):
+    def ComputeProbability(self, val_dict=None, cond_mask_dict={}, grad=False, log=False, is_negative=False):
         '''
         Compute unnormalized measure
         :param val_dict: A dictionary containing <variable, value> pairs
@@ -341,6 +413,7 @@ class Network(torch.nn.Module):
         if gl.debug:
             print('-------- p_tilde ----------')
         log_p_tilde = self.ComputeLogUnnormalized(val_dict)
+
         marginalize_dict = {}
         for k in cond_mask_dict:
             marginalize_dict[k] = 1 - cond_mask_dict[k]
@@ -349,18 +422,11 @@ class Network(torch.nn.Module):
 
         log_Z = self.ComputeLogUnnormalized(val_dict, marginalize_dict)
 
-        #print( log_p_tilde)
-        #print(log_Z)
-
         J = torch.sum(- log_p_tilde + log_Z) #  negative log-likelihood
-
-        #print('log p_tilder', log_p_tilde)
-        #print('log z',        log_Z)
-        #print('diff',         log_p_tilde - log_Z)
-        #print('np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() )', np.exp( log_p_tilde.data.numpy() - log_Z.data.numpy() ))
 
         if grad:
             J.backward()
+
         prob = log_p_tilde.data.cpu().numpy() - log_Z.data.cpu().numpy()
         if not log:
             prob = np.exp(prob)

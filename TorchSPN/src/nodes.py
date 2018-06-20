@@ -45,6 +45,86 @@ class ConcatLayer(Nodes):
         self.val = torch.cat([c.val for c in self.child_list], dim=1)
         return self.val
 
+class SparseProductNodes(Nodes):
+    def __init__(self, is_cuda, num=1):
+        '''
+        Initialize a set of sum nodes
+        :param num: the number of sum nodes
+        '''
+        Nodes.__init__(self, is_cuda).__init__()
+        self.num = num
+        self.child_edges = []
+        self.parent_edges = []
+        self.scope = None  # todo
+        self.is_cuda = is_cuda
+
+    def forward(self):
+        self.val = None
+        for e in self.child_edges:
+            batch = len(e.child.val)
+            sel = e.child.val[:, e.flattened_indices]
+            condensed = sel.view(batch, e.dim[0], e.dim[1])
+            result = torch.sum(condensed, 2)
+
+            if self.val is None:
+                self.val = result
+            else:
+                self.val += result
+
+        return self.val
+
+class SparseSumNodes(Nodes):
+    def __init__(self, is_cuda, num=1, weights=None):
+        '''
+        Initialize a set of sum nodes
+        :param num: the number of sum nodes
+        '''
+        Nodes.__init__(self, is_cuda).__init__()
+        self.num = num
+        self.child_edges = []
+        self.parent_edges = []
+        self.scope = None  # todo
+        self.is_cuda = is_cuda
+        self.weights= weights
+
+    def forward(self):
+        self.val = None
+
+        maxval = None
+        for e in self.child_edges:
+            current_max = torch.max(e.child.val, 1)[0]
+            if maxval is None:
+                maxval = current_max
+            else:
+                maxval = torch.max(maxval, current_max)
+        maxval.detach()
+
+        for e in self.child_edges:
+            batch = len(e.child.val)
+            maxval = maxval.view(batch, 1)
+
+            tmp = e.child.val - maxval
+
+            tmp_exp = torch.exp(tmp)
+            long_tmp = tmp_exp[:, e.flattened_indices]
+
+            connection_weights = self.weights[e.connection_weight_indices]
+            dot_res = torch.mul(long_tmp, connection_weights)
+
+            condensed = dot_res.view(batch, e.dim[0], e.dim[1])
+            result = torch.sum(condensed, 2)
+
+            if self.val is None:
+                self.val = result
+            else:
+                self.val += result
+
+        self.val += torch.exp(torch.FloatTensor([-75]))[0]
+        self.val = torch.log(self.val)
+        self.val += maxval
+
+        return self.val
+
 class SumNodes(Nodes):
     '''
     The class of a set of sum nodes (also called a sum layer)
@@ -83,7 +163,7 @@ class SumNodes(Nodes):
 
         x_onehot = []
         for idx, onedist in enumerate(dist):
-            onedist = onedist.data.numpy()
+            onedist = onedist.data.cpu().numpy()
             while sum(onedist) > 1:
                 onedist *= .999
             sample_onedist = np.random.multinomial(1, onedist, n_batch)
@@ -150,39 +230,10 @@ class SumNodes(Nodes):
 
         # log space only:
 
+        self.val += torch.exp(torch.FloatTensor([-75]))[0]
         self.val = torch.log(self.val) # log( wx / max)
         self.val += maxval
         return self.val
-
-class SparseProductNodes(Nodes):
-    def __init__(self, is_cuda, num=1):
-        Nodes.__init__(self, is_cuda).__init__()
-        self.num = num
-        self.child_edges = []
-        self.parent_edges = []
-        self.val = None
-
-    def forward(self):
-        batch = self.child_edges[0].child.val.size()[0]
-        val = self.var(torch.zeros((batch, self.num)))
-
-        # TODO: Implement batch forward
-
-        for e in self.child_edges:
-            child_val = e.child.val
-
-            # print("Child_val " + str(child_val))
-            # print("Connections " + str(e.connections))
-            # pdb.set_trace()
-
-            for i in range(self.num):
-                for child_idx in e.connections[i]:
-                    # NOTE: x += a doesn't work for some reason
-                    new_val = val[0, i] + child_val[0, child_idx]
-                    val[0, i] = new_val
-
-        self.val = val
-        return val
 
 class ProductNodes(Nodes):
     '''
@@ -257,11 +308,12 @@ class GaussianNodes(Nodes):
         self.mean  = mean
         self.logstd = logstd
         self.is_cuda = is_cuda
+        self.parent_edges = []
         pass
 
     def gen_samples(self, num=2):
-        self.samples = np.random.normal(float(self.mean.data.numpy()),
-                         float(np.exp(self.logstd.data.numpy())),
+        self.samples = np.random.normal(float(self.mean.data.cpu().numpy()),
+                         float(np.exp(self.logstd.data.cpu().numpy())),
                          (num,1)
                          )
         return self.samples
@@ -299,12 +351,7 @@ class GaussianNodes(Nodes):
         pass
 
     def std_proj_hook(self):
-
-        #if self.std.data.numpy().__float__() < EPSILON:
-        #    print('to clamp', self.std.data.numpy())
-        #self.std.data = self.std.data.clamp(min=EPSILON)
-        #print('after clamping:', self.std.data.numpy().__float__())
-        pass
+        self.logstd.data = self.logstd.data.clamp(min=-85)
 
 
 class MultinomialNodes(Nodes):
@@ -449,7 +496,6 @@ class MultinomialNodes(Nodes):
             self.embed_layer.weight.data[off:off+nval,:] = (thispara / partition).data
         pass
 
-
 class BinaryNodes(Nodes):
     '''
     The class of a set of inary nodes
@@ -486,7 +532,6 @@ class BinaryNodes(Nodes):
         :return: the value of this layer
         '''
         return self.val
-
 
 if __name__ == '__main__':
 
