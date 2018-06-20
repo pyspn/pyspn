@@ -2,17 +2,20 @@ import cProfile
 import pdb
 import pickle
 import time
-
+import sys
+import os
 import torch
 from torch import optim, cuda
-
-from compiler.struct_to_spn import *
+from collections import deque, defaultdict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from compiler.struct_to_spn import *
+
 from TorchSPN.src import param
 import structure
+import data_loader
 
-# (train_data, test_data) = data_loader.load_data(data_loader.cifar_10)
+(train_data, test_data) = data_loader.load_data(data_loader.cifar_10)
 
 class Hyperparameter(object):
     def __init__(self, struct=None, optimizer_constructor=None, loss=None,\
@@ -304,13 +307,13 @@ def main():
 
     print("Creating SPN")
 
-    # tspn = TrainedConvSPN(digits=digits_to_train, hyperparameter=hyperparameter)
-    #
-    # cprofile_start()
-    # train_spn()
-    # cprofile_end("tmm.cprof")
-    # print("Done")
-    #
+    tspn = TrainedConvSPN(digits=digits_to_train, hyperparameter=hyperparameter)
+
+    cprofile_start()
+    train_spn()
+    cprofile_end("tmm.cprof")
+    print("Done")
+ 
     # tspn.save_model('plain_' + str(digits_to_train).replace(" ", ""))
 
     pdb.set_trace()

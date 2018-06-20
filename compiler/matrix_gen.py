@@ -1,5 +1,6 @@
 import structure
 import numpy as np
+from collections import defaultdict, deque
 
 # Constants
 sum_type = "sum"
@@ -47,10 +48,10 @@ class CVMetaData(object):
                 node = q.popleft()
                 curr_level.append(node)
 
-                if isinstance(node, Leaf):
+                if isinstance(node, structure.leaf.Leaf):
                     continue
                 else:
-                    node_type = sum_type if isinstance(node, Sum) else prd_type
+                    node_type = sum_type if isinstance(node, structure.node.Sum) else prd_type
                     if level_type is None:
                         level_type = node_type
                     elif node_type != level_type:
