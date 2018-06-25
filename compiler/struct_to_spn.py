@@ -57,12 +57,17 @@ class MatrixSPN(network.Network):
     def generate_multinomial_leaves(self, metadata):
         num_leaves = metadata.num_nodes_by_level[-1]
 
-        list_prob = [
-            np.array([
-                [0.6],
-                [0.4]
-            ])
-        ] * num_leaves
+        leaves = metadata.nodes_by_level[-1]
+        list_prob = []
+
+        for leaf in leaves:
+            list_prob.append(
+                np.array([
+                    [leaf.w1]
+                    [leaf.w2]
+                ])
+            )
+
         leaves = self.AddMultinomialNodes(
             n_variable=num_leaves,
             n_out=1,
@@ -86,7 +91,7 @@ class MatrixSPN(network.Network):
             parameters=self.shared_parameters)
         self.leaves.append(leaf)
 
-        return leaf
+        return leaf        
 
     def compute_prob(self, x):
         (val_dict, cond_mask_dict) = self.get_mapped_input_dict(np.array([x]))
@@ -125,7 +130,11 @@ class MatrixSPN(network.Network):
         self.leaves_network_id = metadata.leaves_network_id
 
         # create leaves
-        leaves = self.generate_gaussian_leaves(metadata)
+        if metadata.nodes_by_level[-1][0].node_type == "Leaf":
+            leaves = self.generate_gaussian_leaves(metadata)
+
+        else:
+            leaves = self.generate_multinomial_leaves(metadata)
 
         reorder_metadata = []
 
