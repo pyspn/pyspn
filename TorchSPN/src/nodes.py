@@ -73,6 +73,58 @@ class SparseProductNodes(Nodes):
 
         return self.val
 
+class SparseMaxNodes(Nodes):
+    def __init__(self, is_cuda, num=1, weights=None):
+        '''
+        Initialize a set of max nodes
+        :param num: the number of max nodes
+        '''
+        Nodes.__init__(self, is_cuda).__init__()
+        self.num = num
+        self.child_edges = []
+        self.parent_edges = []
+        self.scope = None  # todo
+        self.is_cuda = is_cuda
+        self.weights= weights
+
+    def forward(self):
+        self.val = None
+
+        maxval = None
+        for e in self.child_edges:
+            current_max = torch.max(e.child.val, 1)[0]
+            if maxval is None:
+                maxval = current_max
+            else:
+                maxval = torch.max(maxval, current_max)
+        maxval.detach()
+
+        for e in self.child_edges:
+            batch = len(e.child.val)
+            maxval = maxval.view(batch, 1)
+
+            tmp = e.child.val - maxval
+
+            tmp_exp = torch.exp(tmp)
+            long_tmp = tmp_exp[:, e.flattened_indices]
+
+            connection_weights = self.weights[e.connection_weight_indices]
+            dot_res = torch.mul(long_tmp, connection_weights)
+
+            condensed = dot_res.view(batch, e.dim[0], e.dim[1])
+            result = torch.sum(condensed, 2)
+
+            if self.val is None:
+                self.val = result
+            else:
+                self.val += result
+
+        self.val += torch.exp(torch.FloatTensor([-75]))[0]
+        self.val = torch.log(self.val)
+        self.val += maxval
+
+        return self.val
+
 class SparseSumNodes(Nodes):
     def __init__(self, is_cuda, num=1, weights=None):
         '''
