@@ -90,38 +90,18 @@ class SparseMaxNodes(Nodes):
     def forward(self):
         self.val = None
 
-        maxval = None
-        for e in self.child_edges:
-            current_max = torch.max(e.child.val, 1)[0]
-            if maxval is None:
-                maxval = current_max
-            else:
-                maxval = torch.max(maxval, current_max)
-        maxval.detach()
-
         for e in self.child_edges:
             batch = len(e.child.val)
-            maxval = maxval.view(batch, 1)
 
-            tmp = e.child.val - maxval
-
-            tmp_exp = torch.exp(tmp)
+            tmp_exp = torch.exp(e.child.val)
             long_tmp = tmp_exp[:, e.flattened_indices]
 
             connection_weights = self.weights[e.connection_weight_indices]
             dot_res = torch.mul(long_tmp, connection_weights)
 
             condensed = dot_res.view(batch, e.dim[0], e.dim[1])
-            result = torch.sum(condensed, 2)
 
-            if self.val is None:
-                self.val = result
-            else:
-                self.val += result
-
-        self.val += torch.exp(torch.FloatTensor([-75]))[0]
-        self.val = torch.log(self.val)
-        self.val += maxval
+            self.val = torch.max(condensed, 2)[0] #TODO: Deal with multiple child_edges
 
         return self.val
 
@@ -138,6 +118,24 @@ class SparseSumNodes(Nodes):
         self.scope = None  # todo
         self.is_cuda = is_cuda
         self.weights= weights
+
+    def max_forward(self):
+        self.val = None
+
+        for e in self.child_edges:
+            batch = len(e.child.val)
+
+            tmp_exp = torch.exp(e.child.val)
+            long_tmp = tmp_exp[:, e.flattened_indices]
+
+            connection_weights = self.weights[e.connection_weight_indices]
+            dot_res = torch.mul(long_tmp, connection_weights)
+
+            condensed = dot_res.view(batch, e.dim[0], e.dim[1])
+
+            self.val = torch.max(condensed, 2)[0] #TODO: Deal with multiple child_edges
+
+        return self.val
 
     def forward(self):
         self.val = None
