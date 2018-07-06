@@ -104,7 +104,7 @@ class Structure(object):
 
                 # TODO: prob can compress common highest childs
                 for child in highest_child:
-                    parameter_update(highest_child, likelihoods)
+                    parameter_update(child, likelihoods)
                     highest_child_edge.count_n = (highest_child_edge.child.count_n + 1) / root.count_n
 
             # Assume Leaf otherwise
@@ -113,7 +113,7 @@ class Structure(object):
                 return
 
         def counting_parameter_update(likelihoods):
-            for root in roots:
+            for root in self.roots:
                 parameter_update(root, likelihoods)
 
 
