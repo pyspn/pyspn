@@ -79,3 +79,41 @@ class Structure(object):
             fn(level, level_type, level_nodes, edge_count)
 
             level += 1
+
+
+        # Likelihoods is a dictionary of arrays, key of the dictionary is the id of the node. array is an array of numbers representing the likelihoods
+        def parameter_update(root, likelihoods):
+            root.count_n += 1
+            if root.node_type == 'Product':
+                for edge in root.edges:
+                    parameter_update(edge.child, data)
+            elif root.node_type == 'Sum':
+                highest_child = []
+                highest_child_likelihood = []
+                highest_child_edge = []
+                for edge in root.edges:
+                    for idx, likelihood in enumerate(likelihoods[edge.child.id]):
+                        if highest_child[idx] is None:
+                            highest_child.append(edge.child)
+                            highest_child_likelihood.append(likelihood)
+                            highest_child_edge.append(edge)
+                        elif likelihood > highest_child_likelihood[idx]:
+                            higest_child[idx] = edge.child
+                            highest_child_likelihood[idx] = likelihood
+                            highest_child_edge[idx] = edge
+
+                # TODO: prob can compress common highest childs
+                for child in highest_child:
+                    parameter_update(highest_child, likelihoods)
+                    highest_child_edge.count_n = (highest_child_edge.child.count_n + 1) / root.count_n
+
+            # Assume Leaf otherwise
+            else:
+                # TODO: Update leaf counts once we get the structure right
+                return
+
+        def counting_parameter_update(likelihoods):
+            for root in roots:
+                parameter_update(root, likelihoods)
+
+

@@ -5,11 +5,13 @@ class Node(object):
         self.depth = 0
         self.id = None
         self.node_type = node_type
+        self.count_n = 1
 
 class Edge(object):
     def __init__(self, parent=None, child=None):
         self.parent = parent
         self.child = child
+        self.count_n = 1
 
 class SumEdge(Edge):
     def __init__(self, parent=None, child=None, weight_id=None):

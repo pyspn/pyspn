@@ -114,6 +114,17 @@ class MatrixSPN(network.Network):
 
         return J
 
+    def compute_and_store(self, val_dict=None, marginalize_dict={}, store_values_id=False):
+        self.feed(val_dict, marginalize_dict)
+        pass_val = self.forward()
+
+        if store_values_id:
+            self.last_computed[store_values_id] = []
+            for level in self.nodelist:
+                self.last_computed[store_values_id].append(level.val)
+
+        return pass_val
+
     def generate_network(self):
         if debug:
             self.structure.print_stat()
