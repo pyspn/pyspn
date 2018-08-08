@@ -59,6 +59,7 @@ class TrainedConvSPN(torch.nn.Module):
             self.hyperparameter.struct,
             self.shared_parameters,
             is_cuda=self.use_cuda)
+        self.network.tiling_factor = self.hyperparameter.tiling_factor
 
         self.shared_parameters.register(self)
         self.shared_parameters.proj()

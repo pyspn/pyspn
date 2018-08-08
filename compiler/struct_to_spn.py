@@ -1,7 +1,8 @@
 import os.path
 import sys
-
+import torch
 from compiler.matrix_gen import *
+from torch.autograd import Variable as Variable
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from TorchSPN.src import network
@@ -113,6 +114,43 @@ class MatrixSPN(network.Network):
             return J
 
         return J
+
+    def MPE(self, data, pred_mask, num_epochs=10, lr=0.0004):
+        pred_mask = torch.from_numpy(pred_mask).byte()
+        to_pred = torch.from_numpy(data)[pred_mask]
+        to_pred.requires_grad = True
+
+        if self.is_cuda:
+            to_pred = to_pred.cuda()
+            pred_mask = pred_mask.cuda()
+
+        to_pred = Variable(to_pred, requires_grad=True)
+
+        optim = torch.optim.SGD([to_pred], lr=lr)
+
+        # optimize via SGD
+        for i in range(num_epochs):
+            input = torch.from_numpy(data)
+            if self.is_cuda:
+                input = input.cuda()
+
+            input[pred_mask] = to_pred
+
+            if self.tiling_factor is not None:
+                processed_input = input.repeat(1, self.tiling_factor)
+            else:
+                processed_input = input
+
+            val_dict = { self.leaves[0]: processed_input }
+
+            n_log_p_tilde = - self.ComputeLogUnnormalized(val_dict) # negative unnormalized log-likelihood
+            sum_n_log_p_tilde = torch.sum(n_log_p_tilde)
+
+            sum_n_log_p_tilde.backward()
+            optim.step()
+
+        # return prediction
+        return to_pred.detach().cpu().numpy()
 
     def generate_network(self):
         if debug:

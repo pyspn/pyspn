@@ -35,7 +35,7 @@ def get_train_data_labels():
 
     for i in range(5):
         id = str(i + 1)
-        train_filename = "data_batch_" + id
+        train_filename = "cifar10/dataset/data_batch_" + id
         (batch_data, batch_labels) = get_data_and_labels( train_filename )
 
         train_data.extend(batch_data)
@@ -44,7 +44,7 @@ def get_train_data_labels():
     return (train_data, train_labels)
 
 def get_test_data_labels():
-    return get_data_and_labels("test_batch")
+    return get_data_and_labels("cifar10/dataset/test_batch")
 
 def get_segmented_data(data, labels):
     num_data = len(labels)

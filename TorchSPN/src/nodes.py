@@ -119,7 +119,12 @@ class SparseSumNodes(Nodes):
             else:
                 self.val += result
 
-        self.val += torch.exp(torch.FloatTensor([-75]))[0]
+        small_num = torch.exp(torch.FloatTensor([-75]))[0]
+        if self.is_cuda:
+            small_num = small_num.cuda()
+
+        self.val += small_num
+
         self.val = torch.log(self.val)
         self.val += maxval
 
@@ -230,7 +235,11 @@ class SumNodes(Nodes):
 
         # log space only:
 
-        self.val += torch.exp(torch.FloatTensor([-75]))[0]
+        small_num = torch.exp(torch.FloatTensor([-75]))[0]
+        if self.is_cuda:
+            small_num = small_num.cuda()
+
+        self.val += small_num
         self.val = torch.log(self.val) # log( wx / max)
         self.val += maxval
         return self.val
@@ -309,6 +318,7 @@ class GaussianNodes(Nodes):
         self.logstd = logstd
         self.is_cuda = is_cuda
         self.parent_edges = []
+        self.debug = False
         pass
 
     def gen_samples(self, num=2):
@@ -323,7 +333,12 @@ class GaussianNodes(Nodes):
         :return: the value of current layer
         compute log p(x; mu, sigma)
         '''
-        self.input = self.var(torch.from_numpy(self.input.astype('float32')))
+        if self.debug:
+            pdb.set_trace()
+        if isinstance(self.input, np.ndarray):
+            self.input = torch.from_numpy(self.input.astype('float32'))
+            self.input = self.var(self.input)
+
         x_mean = self.input - self.mean
         std    = torch.exp(self.logstd)
         var    = std * std
