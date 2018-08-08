@@ -130,6 +130,7 @@ class MatrixSPN(network.Network):
 
         # optimize via SGD
         for i in range(num_epochs):
+            optim.zero_grad()
             input = torch.from_numpy(data)
             if self.is_cuda:
                 input = input.cuda()
