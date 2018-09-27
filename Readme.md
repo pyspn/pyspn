@@ -26,7 +26,7 @@ Right now the library supports the ability to do the following (Examples to come
 * Generative Learning 
 * Discriminative Learning
 * MPE/MAP Queries (Conditional Queries)
-* 
+* Marginal Queries
 
 ## Running the tests
 
